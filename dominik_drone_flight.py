@@ -6,25 +6,26 @@
 # Compares energy cost and optimal travel time with/without wind.
 
 import matplotlib
-matplotlib.use('Agg')
-import numpy as np
-import matplotlib.pyplot as plt
-from scipy.optimize import minimize_scalar
 
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import numpy as np
+from scipy.optimize import minimize_scalar
 
 # --- Wind and Drag Parameters ---
 WIND_SPEED_MPH = 4.0
-WIND_SPEED_MS = WIND_SPEED_MPH * 0.44704   # 4 mph → 1.789 m/s
-V_WIND = np.array([-WIND_SPEED_MS, 0.0])   # blowing west (negative x)
+WIND_SPEED_MS = WIND_SPEED_MPH * 0.44704  # 4 mph → 1.789 m/s
+V_WIND = np.array([-WIND_SPEED_MS, 0.0])  # blowing west (negative x)
 
-RHO = 1.225       # air density (kg/m^3)
-CD = 1.0          # drag coefficient for small drone
-A_CROSS = 0.1     # frontal cross-sectional area (m^2)
+RHO = 1.225  # air density (kg/m^3)
+CD = 1.0  # drag coefficient for small drone
+A_CROSS = 0.1  # frontal cross-sectional area (m^2)
 
 
 # =====================================================================
 #  ANALYTICAL TRAJECTORY  (same for both scenarios)
 # =====================================================================
+
 
 def velocity_params(xA, yA, xB, yB, T):
     """ax = 6(xB-xA)/T^3,  ay = 6(yB-yA)/T^3"""
@@ -51,6 +52,7 @@ def trajectory_profiles(xA, yA, xB, yB, T_leg, N=2000):
 #  THRUST AND ENERGY — NO WIND
 # =====================================================================
 
+
 def thrust_no_wind(acx, acy, m):
     """F_thrust = m * a_analytical."""
     return m * acx, m * acy
@@ -67,6 +69,7 @@ def leg_energy_no_wind(xA, yA, xB, yB, T_leg, m, N=2000):
 # =====================================================================
 #  THRUST AND ENERGY — WITH WIND (compensated)
 # =====================================================================
+
 
 def thrust_with_wind(vx, vy, acx, acy, m):
     """
@@ -97,6 +100,7 @@ def leg_energy_wind(xA, yA, xB, yB, T_leg, m, N=2000):
 #  ROUND-TRIP ENERGY (motion + hover)
 # =====================================================================
 
+
 def roundtrip_energy(xA, yA, xB, yB, T_total, m, E_H, wind=False):
     T_leg = T_total / 2
     func = leg_energy_wind if wind else leg_energy_no_wind
@@ -115,10 +119,10 @@ if __name__ == "__main__":
     xB, yB = 1.0, 2.0
     T_total = 1.0
     m = 1.0
-    E_H = 1.0               # hovering power (energy per unit time)
+    E_H = 1.0  # hovering power (energy per unit time)
     T_leg = T_total / 2
 
-    D = np.sqrt((xB - xA)**2 + (yB - yA)**2)
+    D = np.sqrt((xB - xA) ** 2 + (yB - yA) ** 2)
 
     # =================================================================
     #  1. FIXED-TIME ANALYSIS  (T_total = 1.0 s)
@@ -143,10 +147,14 @@ if __name__ == "__main__":
     # =================================================================
     opt_nw = minimize_scalar(
         lambda T: roundtrip_energy(xA, yA, xB, yB, T, m, E_H, wind=False),
-        bounds=(0.2, 20.0), method='bounded')
+        bounds=(0.2, 20.0),
+        method="bounded",
+    )
     opt_w = minimize_scalar(
         lambda T: roundtrip_energy(xA, yA, xB, yB, T, m, E_H, wind=True),
-        bounds=(0.2, 20.0), method='bounded')
+        bounds=(0.2, 20.0),
+        method="bounded",
+    )
 
     T_opt_nw, E_opt_nw = opt_nw.x, opt_nw.fun
     T_opt_w, E_opt_w = opt_w.x, opt_w.fun
@@ -160,18 +168,18 @@ if __name__ == "__main__":
     #  3. TIME SWEEP
     # =================================================================
     T_range = np.linspace(0.3, 6.0, 300)
-    E_nw_sweep = np.array([roundtrip_energy(xA, yA, xB, yB, T, m, E_H, False)
-                           for T in T_range])
-    E_w_sweep = np.array([roundtrip_energy(xA, yA, xB, yB, T, m, E_H, True)
-                          for T in T_range])
+    E_nw_sweep = np.array(
+        [roundtrip_energy(xA, yA, xB, yB, T, m, E_H, False) for T in T_range]
+    )
+    E_w_sweep = np.array(
+        [roundtrip_energy(xA, yA, xB, yB, T, m, E_H, True) for T in T_range]
+    )
 
     # =================================================================
     #  FIGURE 1 — Thrust & Power Profiles (fixed T)
     # =================================================================
-    t_prof, vx_o, vy_o, acx_o, acy_o = trajectory_profiles(
-        xA, yA, xB, yB, T_leg)
-    _, vx_r, vy_r, acx_r, acy_r = trajectory_profiles(
-        xB, yB, xA, yA, T_leg)
+    t_prof, vx_o, vy_o, acx_o, acy_o = trajectory_profiles(xA, yA, xB, yB, T_leg)
+    _, vx_r, vy_r, acx_r, acy_r = trajectory_profiles(xB, yB, xA, yA, T_leg)
 
     Fx_nw_o, Fy_nw_o = thrust_no_wind(acx_o, acy_o, m)
     Fx_w_o, Fy_w_o = thrust_with_wind(vx_o, vy_o, acx_o, acy_o, m)
@@ -179,124 +187,188 @@ if __name__ == "__main__":
     Fx_w_r, Fy_w_r = thrust_with_wind(vx_r, vy_r, acx_r, acy_r, m)
 
     F_nw_o = np.sqrt(Fx_nw_o**2 + Fy_nw_o**2)
-    F_w_o  = np.sqrt(Fx_w_o**2 + Fy_w_o**2)
+    F_w_o = np.sqrt(Fx_w_o**2 + Fy_w_o**2)
     F_nw_r = np.sqrt(Fx_nw_r**2 + Fy_nw_r**2)
-    F_w_r  = np.sqrt(Fx_w_r**2 + Fy_w_r**2)
+    F_w_r = np.sqrt(Fx_w_r**2 + Fy_w_r**2)
 
     P_nw_o = np.abs(Fx_nw_o * vx_o + Fy_nw_o * vy_o)
-    P_w_o  = np.abs(Fx_w_o  * vx_o + Fy_w_o  * vy_o)
+    P_w_o = np.abs(Fx_w_o * vx_o + Fy_w_o * vy_o)
     P_nw_r = np.abs(Fx_nw_r * vx_r + Fy_nw_r * vy_r)
-    P_w_r  = np.abs(Fx_w_r  * vx_r + Fy_w_r  * vy_r)
+    P_w_r = np.abs(Fx_w_r * vx_r + Fy_w_r * vy_r)
 
     fig1, axes = plt.subplots(2, 2, figsize=(14, 10))
     (a1, a2), (a3, a4) = axes
 
-    a1.plot(t_prof, F_nw_o, 'b-', label='No Wind', lw=2)
-    a1.plot(t_prof, F_w_o, 'r-', label='With Wind', lw=2)
-    a1.set_xlabel('Time (s)'), a1.set_ylabel('|F_thrust| (N)')
-    a1.set_title('Outbound (A→B): Thrust Magnitude')
+    a1.plot(t_prof, F_nw_o, "b-", label="No Wind", lw=2)
+    a1.plot(t_prof, F_w_o, "r-", label="With Wind", lw=2)
+    a1.set_xlabel("Time (s)"), a1.set_ylabel("|F_thrust| (N)")
+    a1.set_title("Outbound (A→B): Thrust Magnitude")
     a1.legend(), a1.grid(True)
 
-    a2.plot(t_prof, F_nw_r, 'b-', label='No Wind', lw=2)
-    a2.plot(t_prof, F_w_r, 'r-', label='With Wind', lw=2)
-    a2.set_xlabel('Time (s)'), a2.set_ylabel('|F_thrust| (N)')
-    a2.set_title('Return (B→A): Thrust Magnitude')
+    a2.plot(t_prof, F_nw_r, "b-", label="No Wind", lw=2)
+    a2.plot(t_prof, F_w_r, "r-", label="With Wind", lw=2)
+    a2.set_xlabel("Time (s)"), a2.set_ylabel("|F_thrust| (N)")
+    a2.set_title("Return (B→A): Thrust Magnitude")
     a2.legend(), a2.grid(True)
 
-    a3.plot(t_prof, P_nw_o, 'b-', label='No Wind', lw=2)
-    a3.plot(t_prof, P_w_o, 'r-', label='With Wind', lw=2)
-    a3.fill_between(t_prof, P_nw_o, P_w_o, where=P_w_o > P_nw_o,
-                    alpha=0.2, color='red', label='Extra cost')
-    a3.fill_between(t_prof, P_nw_o, P_w_o, where=P_w_o < P_nw_o,
-                    alpha=0.2, color='green', label='Wind assist')
-    a3.set_xlabel('Time (s)'), a3.set_ylabel('|Power| (W)')
-    a3.set_title('Outbound Power (red = extra, green = wind assist)')
+    a3.plot(t_prof, P_nw_o, "b-", label="No Wind", lw=2)
+    a3.plot(t_prof, P_w_o, "r-", label="With Wind", lw=2)
+    a3.fill_between(
+        t_prof,
+        P_nw_o,
+        P_w_o,
+        where=P_w_o > P_nw_o,
+        alpha=0.2,
+        color="red",
+        label="Extra cost",
+    )
+    a3.fill_between(
+        t_prof,
+        P_nw_o,
+        P_w_o,
+        where=P_w_o < P_nw_o,
+        alpha=0.2,
+        color="green",
+        label="Wind assist",
+    )
+    a3.set_xlabel("Time (s)"), a3.set_ylabel("|Power| (W)")
+    a3.set_title("Outbound Power (red = extra, green = wind assist)")
     a3.legend(), a3.grid(True)
 
-    a4.plot(t_prof, P_nw_r, 'b-', label='No Wind', lw=2)
-    a4.plot(t_prof, P_w_r, 'r-', label='With Wind', lw=2)
-    a4.fill_between(t_prof, P_nw_r, P_w_r, where=P_w_r > P_nw_r,
-                    alpha=0.2, color='red', label='Extra cost')
-    a4.fill_between(t_prof, P_nw_r, P_w_r, where=P_w_r < P_nw_r,
-                    alpha=0.2, color='green', label='Wind assist')
-    a4.set_xlabel('Time (s)'), a4.set_ylabel('|Power| (W)')
-    a4.set_title('Return Power (red = extra, green = wind assist)')
+    a4.plot(t_prof, P_nw_r, "b-", label="No Wind", lw=2)
+    a4.plot(t_prof, P_w_r, "r-", label="With Wind", lw=2)
+    a4.fill_between(
+        t_prof,
+        P_nw_r,
+        P_w_r,
+        where=P_w_r > P_nw_r,
+        alpha=0.2,
+        color="red",
+        label="Extra cost",
+    )
+    a4.fill_between(
+        t_prof,
+        P_nw_r,
+        P_w_r,
+        where=P_w_r < P_nw_r,
+        alpha=0.2,
+        color="green",
+        label="Wind assist",
+    )
+    a4.set_xlabel("Time (s)"), a4.set_ylabel("|Power| (W)")
+    a4.set_title("Return Power (red = extra, green = wind assist)")
     a4.legend(), a4.grid(True)
 
-    plt.suptitle(f'Thrust & Power Profiles — Compensated Flight (T={T_total}s)',
-                 fontsize=14, y=1.01)
+    plt.suptitle(
+        f"Thrust & Power Profiles — Compensated Flight (T={T_total}s)",
+        fontsize=14,
+        y=1.01,
+    )
     plt.tight_layout()
-    plt.savefig('thrust_power_profiles.png', dpi=150, bbox_inches='tight')
+    plt.savefig("thrust_power_profiles.png", dpi=150, bbox_inches="tight")
 
     # =================================================================
     #  FIGURE 2 — Energy vs Travel Time
     # =================================================================
     fig2, ax5 = plt.subplots(figsize=(11, 7))
-    ax5.plot(T_range, E_nw_sweep, 'b-', label='No Wind', lw=2)
-    ax5.plot(T_range, E_w_sweep, 'r-', label=f'Wind ({WIND_SPEED_MPH} mph W)', lw=2)
+    ax5.plot(T_range, E_nw_sweep, "b-", label="No Wind", lw=2)
+    ax5.plot(T_range, E_w_sweep, "r-", label=f"Wind ({WIND_SPEED_MPH} mph W)", lw=2)
 
-    ax5.scatter([T_opt_nw], [E_opt_nw], color='blue', s=120, zorder=5,
-                edgecolors='black')
-    ax5.scatter([T_opt_w], [E_opt_w], color='red', s=120, zorder=5,
-                edgecolors='black')
+    ax5.scatter(
+        [T_opt_nw], [E_opt_nw], color="blue", s=120, zorder=5, edgecolors="black"
+    )
+    ax5.scatter([T_opt_w], [E_opt_w], color="red", s=120, zorder=5, edgecolors="black")
 
-    ax5.annotate(f'No-Wind Optimum\nT = {T_opt_nw:.3f} s\nE = {E_opt_nw:.2f} J',
-                 (T_opt_nw, E_opt_nw), xytext=(40, 30),
-                 textcoords='offset points', fontsize=10,
-                 arrowprops=dict(arrowstyle='->', color='blue'))
-    ax5.annotate(f'Wind Optimum\nT = {T_opt_w:.3f} s\nE = {E_opt_w:.2f} J',
-                 (T_opt_w, E_opt_w), xytext=(40, -40),
-                 textcoords='offset points', fontsize=10,
-                 arrowprops=dict(arrowstyle='->', color='red'))
+    ax5.annotate(
+        f"No-Wind Optimum\nT = {T_opt_nw:.3f} s\nE = {E_opt_nw:.2f} J",
+        (T_opt_nw, E_opt_nw),
+        xytext=(40, 30),
+        textcoords="offset points",
+        fontsize=10,
+        arrowprops=dict(arrowstyle="->", color="blue"),
+    )
+    ax5.annotate(
+        f"Wind Optimum\nT = {T_opt_w:.3f} s\nE = {E_opt_w:.2f} J",
+        (T_opt_w, E_opt_w),
+        xytext=(40, -40),
+        textcoords="offset points",
+        fontsize=10,
+        arrowprops=dict(arrowstyle="->", color="red"),
+    )
 
     # shade the time shift
-    ax5.axvline(T_opt_nw, color='blue', ls='--', alpha=0.4)
-    ax5.axvline(T_opt_w, color='red', ls='--', alpha=0.4)
+    ax5.axvline(T_opt_nw, color="blue", ls="--", alpha=0.4)
+    ax5.axvline(T_opt_w, color="red", ls="--", alpha=0.4)
     ymin_shade = min(E_opt_nw, E_opt_w) * 0.95
-    ax5.fill_betweenx([ymin_shade, ymin_shade + 1],
-                      T_opt_nw, T_opt_w, alpha=0.15, color='purple')
-    ax5.text((T_opt_nw + T_opt_w) / 2, ymin_shade + 0.5,
-             f'ΔT = {T_shift:+.3f} s', ha='center', fontsize=10,
-             color='purple', fontweight='bold')
+    ax5.fill_betweenx(
+        [ymin_shade, ymin_shade + 1], T_opt_nw, T_opt_w, alpha=0.15, color="purple"
+    )
+    ax5.text(
+        (T_opt_nw + T_opt_w) / 2,
+        ymin_shade + 0.5,
+        f"ΔT = {T_shift:+.3f} s",
+        ha="center",
+        fontsize=10,
+        color="purple",
+        fontweight="bold",
+    )
 
-    ax5.set_xlabel('Total Round-Trip Time T (s)', fontsize=12)
-    ax5.set_ylabel('Total Energy (J)', fontsize=12)
-    ax5.set_title('Energy vs Travel Time — Maintaining Same Flight Path',
-                  fontsize=13)
+    ax5.set_xlabel("Total Round-Trip Time T (s)", fontsize=12)
+    ax5.set_ylabel("Total Energy (J)", fontsize=12)
+    ax5.set_title("Energy vs Travel Time — Maintaining Same Flight Path", fontsize=13)
     ax5.legend(fontsize=11), ax5.grid(True)
     ax5.set_ylim(bottom=0)
     plt.tight_layout()
-    plt.savefig('energy_vs_time.png', dpi=150)
+    plt.savefig("energy_vs_time.png", dpi=150)
 
     # =================================================================
     #  FIGURE 3 — Energy Bar Chart (fixed T)
     # =================================================================
     fig3, ax6 = plt.subplots(figsize=(10, 6))
-    labels = ['Motion\n(Out)', 'Motion\n(Return)', 'Total\nMotion',
-              'Hover', 'Grand\nTotal']
+    labels = [
+        "Motion\n(Out)",
+        "Motion\n(Return)",
+        "Total\nMotion",
+        "Hover",
+        "Grand\nTotal",
+    ]
     nw_vals = [E_nw_out, E_nw_ret, E_nw_motion, E_nw_hover, E_nw_total]
-    w_vals  = [E_w_out,  E_w_ret,  E_w_motion,  E_w_hover,  E_w_total]
+    w_vals = [E_w_out, E_w_ret, E_w_motion, E_w_hover, E_w_total]
 
     x_pos = np.arange(len(labels))
     width = 0.35
-    bars1 = ax6.bar(x_pos - width/2, nw_vals, width,
-                    label='No Wind', color='steelblue')
-    bars2 = ax6.bar(x_pos + width/2, w_vals, width,
-                    label=f'Wind Compensated', color='indianred')
-    ax6.set_ylabel('Energy (J)')
-    ax6.set_title(f'Energy at T = {T_total} s (drone maintains ideal path)')
+    bars1 = ax6.bar(
+        x_pos - width / 2, nw_vals, width, label="No Wind", color="steelblue"
+    )
+    bars2 = ax6.bar(
+        x_pos + width / 2, w_vals, width, label=f"Wind Compensated", color="indianred"
+    )
+    ax6.set_ylabel("Energy (J)")
+    ax6.set_title(f"Energy at T = {T_total} s (drone maintains ideal path)")
     ax6.set_xticks(x_pos)
     ax6.set_xticklabels(labels)
     ax6.legend()
-    ax6.grid(axis='y', alpha=0.3)
+    ax6.grid(axis="y", alpha=0.3)
     for bar in bars1:
-        ax6.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.5,
-                 f'{bar.get_height():.2f}', ha='center', va='bottom', fontsize=9)
+        ax6.text(
+            bar.get_x() + bar.get_width() / 2,
+            bar.get_height() + 0.5,
+            f"{bar.get_height():.2f}",
+            ha="center",
+            va="bottom",
+            fontsize=9,
+        )
     for bar in bars2:
-        ax6.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.5,
-                 f'{bar.get_height():.2f}', ha='center', va='bottom', fontsize=9)
+        ax6.text(
+            bar.get_x() + bar.get_width() / 2,
+            bar.get_height() + 0.5,
+            f"{bar.get_height():.2f}",
+            ha="center",
+            va="bottom",
+            fontsize=9,
+        )
     plt.tight_layout()
-    plt.savefig('energy_comparison.png', dpi=150)
+    plt.savefig("energy_comparison.png", dpi=150)
 
     # =================================================================
     #  CONSOLE OUTPUT
@@ -366,6 +438,8 @@ if __name__ == "__main__":
     if T_shift > 0:
         print(f"    Wind makes optimal trip {T_shift:.4f} s LONGER ({pct_time:+.2f}%)")
     else:
-        print(f"    Wind makes optimal trip {abs(T_shift):.4f} s SHORTER ({pct_time:+.2f}%)")
+        print(
+            f"    Wind makes optimal trip {abs(T_shift):.4f} s SHORTER ({pct_time:+.2f}%)"
+        )
     print(f"    Minimum energy cost of wind: +{E_opt_diff:.4f} J ({pct_opt_e:+.2f}%)")
     print(f"{'='*66}")

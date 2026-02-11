@@ -96,7 +96,7 @@ def plot_results(t, x_num, y_num, x_ana, y_ana):
     ax2.grid(True)
 
     plt.tight_layout()
-    plt.show()
+    # plt.show()
     plt.savefig("drone_flight_validation.png", dpi=300)
 
 
