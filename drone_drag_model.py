@@ -257,7 +257,7 @@ def main():
     print(f"\n Plotting Visuals...")
     generate_visuals(xA, yA, xB, yB)
     print("      - thrust_power_profiles.png")
-    print("      - drone_upgrade_validation.png")
+    print("      - energy_vs_velocity.png")
     print("      - energy_comparison.png")
 
     print("=" * 60)
