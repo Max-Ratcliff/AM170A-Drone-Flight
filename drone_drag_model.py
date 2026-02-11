@@ -1,5 +1,5 @@
 """
-AM170A: Unified Drone Flight Model with Wind and Drag Compensation
+AM170A Drone Flight Model with Wind and Drag Compensation
 Authors: Dominick Rangel, Max Ratcliff, Edmund Xu, Alex Brezny
 
 This script provides a complete simulation environment for drone flight,
@@ -24,7 +24,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.optimize import minimize_scalar
 
-# --- Physics & Environment Constants ---
+# Constants
 RHO = 1.225  # Air density (kg/m^3)
 CD = 1.0  # Drag coefficient
 A_CROSS = 0.1  # Frontal area (m^2)
@@ -32,7 +32,7 @@ WIND_SPEED_MPH = 4.0
 WIND_SPEED_MS = WIND_SPEED_MPH * 0.44704
 V_WIND = np.array([-WIND_SPEED_MS, 0.0])  # Constant westward wind
 
-# --- Drone Parameters ---
+# Parameters
 MASS = 1.5  # kg
 E_HOVER = 50.0  # Watts (Hovering power)
 
@@ -147,7 +147,7 @@ def generate_visuals(xA, yA, xB, yB):
     plt.tight_layout()
     plt.savefig("thrust_power_profiles.png")
 
-    # --- Plot 2: Energy vs. Velocity (The "Upgrade" Validation) ---
+    # --- Plot 2: Energy vs. Velocity ---
     v_range = np.linspace(2, 25, 100)  # Average Velocity in m/s
     T_sweep = (2 * dist) / v_range
 
