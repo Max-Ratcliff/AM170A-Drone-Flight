@@ -169,14 +169,12 @@ def generate_visuals(xA, yA, xB, yB):
     v_opt_w = (2 * dist) / opt_w.x
 
     plt.figure(figsize=(10, 6))
-    plt.plot(v_range, E_nw, "b-", label="Ideal Model (No Drag)", lw=2)
-    plt.plot(
-        v_range, E_w, "r-", label=f"Upgraded Model ({WIND_SPEED_MPH}mph Wind)", lw=2
-    )
+    plt.plot(v_range, E_nw, "b-", label="No Drag Model", lw=2)
+    plt.plot(v_range, E_w, "r-", label=f"Drag Model ({WIND_SPEED_MPH}mph Wind)", lw=2)
     plt.scatter(v_opt_nw, opt_nw.fun, color="blue", s=100, edgecolors="k", zorder=5)
     plt.scatter(v_opt_w, opt_w.fun, color="red", s=100, edgecolors="k", zorder=5)
 
-    plt.title("Mission Energy vs. Flight Velocity", fontsize=14)
+    plt.title("Energy Used vs. Flight Velocity", fontsize=14)
     plt.xlabel("Average Ground Velocity (m/s)", fontsize=12)
     plt.ylabel("Total Round-Trip Energy (J)", fontsize=12)
     plt.legend()
@@ -239,29 +237,29 @@ def main():
     em_ana = (9.0 / 4.0) * MASS * (dist**2 / (T_val / 2) ** 2)
     err = abs(em_num - em_ana)
 
-    print(f"\n[1/3] VALIDATION (Zero-Drag Case, T_leg={T_val/2}s)")
+    print(f"\n Validating the Zero-Drag Case, T_leg={T_val/2}s")
     print(f"      Numerical Motion Energy:  {em_num:.4f} J")
     print(f"      Analytical Motion Energy: {em_ana:.4f} J")
     print(f"      Absolute Error:           {err:.2e} J")
 
     # Optimization
-    print(f"\n[2/3] OPTIMIZATION (Finding T*)")
+    print(f"\n Solve for T*, that minimizes total energy with drag and wind...")
     opt_w = minimize_scalar(
         lambda T: roundtrip_total_energy(xA, yA, xB, yB, T, True),
         bounds=(5, 100),
         method="bounded",
     )
     print(f"      Optimal Time (T*): {opt_w.x:.2f} s")
+    print(f"      Optimal Velocity:  {(2*dist)/opt_w.x:.2f} m/s")
     print(f"      Minimum Energy:    {opt_w.fun:.2f} J")
 
     # Visuals
-    print(f"\n[3/3] GENERATING VISUALS...")
+    print(f"\n Plotting Visuals...")
     generate_visuals(xA, yA, xB, yB)
     print("      - thrust_power_profiles.png")
     print("      - drone_upgrade_validation.png")
     print("      - energy_comparison.png")
 
-    print("\n[SUCCESS] Simulation complete.")
     print("=" * 60)
 
 
