@@ -118,9 +118,7 @@ class Visualizer:
                         ),
                     )
 
-        # Naive route first (dashed, red)
-        draw_route(ax_route, naive_order, "red", "--", 1.2)
-        # Optimized route on top (solid, blue)
+        # Optimized route (solid, blue)
         draw_route(ax_route, optimal_order, "blue", "-", 1.5)
 
         # Scatter waypoints on top of lines (higher zorder)
@@ -134,9 +132,20 @@ class Visualizer:
             linewidths=1.5,
         )
 
-        # Start/End markers
+        # Label each point with its naive order index (0, 1, 2, ...)
+        for i in range(len(waypoints)):
+            ax_route.annotate(
+                str(i),
+                (waypoints[i, 0], waypoints[i, 1]),
+                xytext=(0, 14),
+                textcoords="offset points",
+                ha="center",
+                fontsize=11,
+                zorder=12,
+            )
+
+        # Start/End marker (closed loop: route returns to start)
         start_idx = optimal_order[0]
-        end_idx = optimal_order[-1]
         ax_route.scatter(
             waypoints[start_idx, 0],
             waypoints[start_idx, 1],
@@ -145,31 +154,11 @@ class Visualizer:
             facecolors="none",
             edgecolors="green",
             linewidths=3,
-            label="Start",
-            zorder=11,
-        )
-        ax_route.scatter(
-            waypoints[end_idx, 0],
-            waypoints[end_idx, 1],
-            marker="s",
-            s=200,
-            facecolors="none",
-            edgecolors="darkorange",
-            linewidths=3,
-            label="End",
+            label="Start/End",
             zorder=11,
         )
 
         legend_elements = [
-            Line2D(
-                [0],
-                [0],
-                color="red",
-                linestyle="--",
-                linewidth=2,
-                alpha=0.7,
-                label="Naive Route",
-            ),
             Line2D(
                 [0],
                 [0],
@@ -188,19 +177,7 @@ class Visualizer:
                 markeredgewidth=2,
                 markersize=10,
                 linestyle="None",
-                label="Start",
-            ),
-            Line2D(
-                [0],
-                [0],
-                marker="s",
-                color="w",
-                markerfacecolor="w",
-                markeredgecolor="darkorange",
-                markeredgewidth=2,
-                markersize=10,
-                linestyle="None",
-                label="End",
+                label="Start/End",
             ),
         ]
         ax_route.legend(handles=legend_elements)
@@ -208,6 +185,7 @@ class Visualizer:
         ax_route.set_ylabel("y [m]", fontsize=14)
         ax_route.set_title("Drone Route Comparison", fontsize=14)
         ax_route.set_aspect("equal")
+        ax_route.margins(0.12)
         ax_route.grid(True, alpha=0.6)
 
         # Bar chart of energy comparison

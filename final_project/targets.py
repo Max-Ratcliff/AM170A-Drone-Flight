@@ -1,5 +1,7 @@
 """Mission targets for generating waypoints and computing distances."""
 
+from typing import Optional
+
 import numpy as np
 from numpy.random import default_rng
 
@@ -9,27 +11,41 @@ class Targets:
     Generates and manages waypoint coordinates for drone mission planning.
     """
 
-    def __init__(self, num_targets: int, bounds: tuple[float, float]) -> None:
+    def __init__(
+        self,
+        num_targets: int,
+        bounds: tuple[float, float],
+        *,
+        waypoint_set: Optional[list[tuple[float, float]]] = None,
+        seed: Optional[int] = None,
+    ) -> None:
         """
         Initialize the 2d environment.
 
         Args:
-            num_targets: Number of target waypoints to generate.
+            num_targets: Number of target waypoints (used when waypoint_set is None).
             bounds: (min, max) for x and y coordinates (in meters).
+            waypoint_set: Optional fixed waypoints for reproducibility.
+            seed: Optional random seed for reproducible generation.
         """
         self.num_targets = num_targets
         self.bounds = bounds
-        self._rng = default_rng()
+        self._waypoint_set = waypoint_set
+        self._rng = default_rng(seed)
 
     def generate_waypoints(self) -> np.ndarray:
         """
-        Generate N random (x, y) coordinates within the given bounds.
+        Return waypoints: either the fixed set or random within bounds.
 
         Returns:
             N x 2 array of waypoint coordinates.
         """
+        if self._waypoint_set is not None:
+            return np.array(self._waypoint_set, dtype=np.float64)
         low, high = self.bounds
-        waypoints = self._rng.uniform(low=low, high=high, size=(self.num_targets, 2))
+        waypoints = self._rng.uniform(
+            low=low, high=high, size=(self.num_targets, 2)
+        )
         return waypoints.astype(np.float64)
 
     def get_distance_matrix(self, waypoints: np.ndarray) -> np.ndarray:

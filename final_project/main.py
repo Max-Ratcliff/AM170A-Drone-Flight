@@ -1,19 +1,35 @@
 """Orchestrates the drone routing optimization pipeline."""
 
+import argparse
+
 from optimizer import RoutingOptimizer
-from params import get_default_params
+from params import (
+    SimulationConfig,
+    get_default_params,
+    get_default_sim_config,
+    get_test_sim_config,
+)
 from physics import DronePhysics
 from plotting import Visualizer
 from targets import Targets
 
 
-def main() -> None:
+def main(
+    simulation_config: SimulationConfig | None = None,
+    tsp_method: str = "brute",
+) -> None:
     """Run the full optimization pipeline: waypoints, physics, TSP, and plots."""
-    num_targets = 5
-    # params can be pulled from params.py or set here
+    config = simulation_config or get_default_sim_config()
     params = get_default_params()
-    targets = Targets(num_targets=num_targets, bounds=(0.0, 2000.0))
+
+    targets = Targets(
+        num_targets=config.num_targets,
+        bounds=config.bounds,
+        waypoint_set=config.waypoint_set,
+        seed=config.seed,
+    )
     waypoints = targets.generate_waypoints()
+    num_targets = waypoints.shape[0]
     # compute the distance matrix once for all pairs of waypoints
     distance_matrix = targets.get_distance_matrix(waypoints)
 
@@ -22,7 +38,8 @@ def main() -> None:
     optimizer = RoutingOptimizer(physics)
     # Build energy matrix and solve TSP to find optimal route
     energy_matrix, optimal_velocity = optimizer.build_energy_matrix(distance_matrix)
-    optimal_order = optimizer.solve_tsp(energy_matrix, method="brute")
+    method = "nearest_neighbor" if tsp_method == "nn" else "brute"
+    optimal_order = optimizer.solve_tsp(energy_matrix, method=method)
 
     # Naive route: sequential 0 -> 1 -> ... -> N-1 -> 0
     naive_order = list(range(num_targets))
@@ -63,4 +80,40 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="Drone routing optimization")
+    parser.add_argument(
+        "-n",
+        "--num-targets",
+        type=int,
+        default=5,
+        help="Number of waypoints (when not using --test)",
+    )
+    parser.add_argument(
+        "-s",
+        "--seed",
+        type=int,
+        default=None,
+        help="Random seed for reproducible waypoints",
+    )
+    parser.add_argument(
+        "--test",
+        action="store_true",
+        help="Use fixed test waypoint set",
+    )
+    parser.add_argument(
+        "-m",
+        "--method",
+        choices=["brute", "nn"],
+        default="brute",
+        help="TSP method: brute (exhaustive) or nn (nearest-neighbor greedy) WARNING: brute is very slow for >10 targets!",
+    )
+    args = parser.parse_args()
+
+    if args.test:
+        config = get_test_sim_config()
+    else:
+        config = SimulationConfig(
+            num_targets=args.num_targets,
+            seed=args.seed,
+        )
+    main(config, tsp_method=args.method)
