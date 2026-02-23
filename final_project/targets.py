@@ -1,11 +1,13 @@
-"""Mission environment for generating waypoints and computing distances."""
+"""Mission targets for generating waypoints and computing distances."""
 
 import numpy as np
 from numpy.random import default_rng
 
 
-class MissionEnvironment:
-    """Generates and manages waypoint coordinates for drone mission planning."""
+class Targets:
+    """
+    Generates and manages waypoint coordinates for drone mission planning.
+    """
 
     def __init__(self, num_targets: int, bounds: tuple[float, float]) -> None:
         """

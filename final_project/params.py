@@ -1,10 +1,12 @@
-"""Physical constants for quadcopter aerodynamic modeling (DJI Phantom 4 baseline)."""
+"""
+Physical constants for quadcopter aerodynamic modeling (DJI Phantom 4 baseline)
+"""
 
 from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
-class DroneConfig:
+class DroneParams:
     """Baseline physical parameters for a standard quadcopter."""
 
     mass: float  # kg
@@ -15,9 +17,9 @@ class DroneConfig:
     c3: float  # Induced power coefficient
 
 
-def get_default_config() -> DroneConfig:
-    """Return the default quadcopter configuration (DJI Phantom 4 baseline)."""
-    return DroneConfig(
+def get_default_params() -> DroneParams:
+    """Return the default quadcopter parameters (DJI Phantom 4 baseline)."""
+    return DroneParams(
         mass=1.38,
         air_density=1.225,
         rotor_area=0.18,
