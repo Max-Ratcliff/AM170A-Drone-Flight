@@ -2,6 +2,7 @@
 
 import argparse
 
+import numpy as np
 from optimizer import RoutingOptimizer
 from params import (
     SimulationConfig,
@@ -26,19 +27,23 @@ def main(
         num_targets=config.num_targets,
         bounds=config.bounds,
         waypoint_set=config.waypoint_set,
+        distribution=config.distribution,
         seed=config.seed,
     )
     waypoints = targets.generate_waypoints()
     num_targets = waypoints.shape[0]
-    # compute the distance matrix once for all pairs of waypoints
-    distance_matrix = targets.get_distance_matrix(waypoints)
 
-    # Initialize physics and optimizer
-    physics = DronePhysics(params)
+    # Initialize physics and optimizer with wind
+    physics = DronePhysics(params, wind_vector=config.wind_vector)
     optimizer = RoutingOptimizer(physics)
     # Build energy matrix and solve TSP to find optimal route
-    energy_matrix, optimal_velocity = optimizer.build_energy_matrix(distance_matrix)
-    method = "nearest_neighbor" if tsp_method == "nn" else "brute"
+    energy_matrix, optimal_velocities = optimizer.build_energy_matrix(waypoints)
+    if tsp_method == "nn":
+        method = "nearest_neighbor"
+    elif tsp_method == "held_karp":
+        method = "held_karp"
+    else:
+        method = "brute"
     optimal_order = optimizer.solve_tsp(energy_matrix, method=method)
 
     # Naive route: sequential 0 -> 1 -> ... -> N-1 -> 0
@@ -57,9 +62,12 @@ def main(
 
     print("=== Drone Routing Optimization Results ===")
     print(f"Waypoints: \n{waypoints}")
+    print(f"Wind Vector (m/s): {config.wind_vector}")
     print(f"Naive route (indices): {naive_order}")
     print(f"Optimal route (indices): {optimal_order}")
-    print(f"Optimal velocity (m/s): {optimal_velocity:.4f}")
+    if optimal_velocities:
+        avg_v = sum(optimal_velocities.values()) / len(optimal_velocities)
+        print(f"Avg Optimal Ground Velocity (m/s): {avg_v:.4f}")
     print()
     print("=== Energy Comparison ===")
     print(f"Naive route energy:   {naive_energy:.2f} J")
@@ -67,13 +75,14 @@ def main(
     print(f"Energy saved:        {energy_saved:.2f} J")
 
     visualizer = Visualizer()
-    visualizer.plot_energy_curve(physics, distance=1000.0)
+    visualizer.plot_energy_curve(physics, segment_vector=np.array([1000.0, 0.0]))
     visualizer.plot_route(
         waypoints,
         optimal_order,
         optimal_energy,
         naive_order,
         naive_energy,
+        wind_vector=physics.wind,
     )
 
     print("\nPlots saved: plots/energy_curve.png, plots/route_map.png")
@@ -101,11 +110,27 @@ if __name__ == "__main__":
         help="Use fixed test waypoint set",
     )
     parser.add_argument(
+        "-w",
+        "--wind",
+        type=float,
+        nargs=2,
+        default=[0.0, 0.0],
+        metavar=("WX", "WY"),
+        help="Wind vector (w_x, w_y) in m/s. Default is 0 0.",
+    )
+    parser.add_argument(
+        "-d",
+        "--distribution",
+        choices=["uniform", "clustered", "grid"],
+        default="uniform",
+        help="Spatial distribution of waypoints: uniform, clustered (neighborhoods), or grid (city blocks).",
+    )
+    parser.add_argument(
         "-m",
         "--method",
-        choices=["brute", "nn"],
+        choices=["brute", "nn", "held_karp"],
         default="brute",
-        help="TSP method: brute (exhaustive) or nn (nearest-neighbor greedy) WARNING: brute is very slow for >10 targets!",
+        help="TSP method: brute (exhaustive), nn (nearest-neighbor greedy), or held_karp (exact DP). WARNING: brute is very slow for >10 targets!",
     )
     args = parser.parse_args()
 
@@ -115,5 +140,7 @@ if __name__ == "__main__":
         config = SimulationConfig(
             num_targets=args.num_targets,
             seed=args.seed,
+            wind_vector=tuple(args.wind),
+            distribution=args.distribution,
         )
     main(config, tsp_method=args.method)

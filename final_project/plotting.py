@@ -20,17 +20,18 @@ class Visualizer:
     """Plots energy vs velocity curves and 2D route maps."""
 
     def plot_energy_curve(
-        self, physics_model: DronePhysics, distance: float
+        self, physics_model: DronePhysics, segment_vector: np.ndarray
     ) -> None:
         """
         Plot U-shaped Energy vs Velocity curve and mark the global minimum.
 
         Args:
             physics_model: DronePhysics instance for energy calculations.
-            distance: Segment length in meters (e.g., 1000).
+            segment_vector: 2D segment vector in meters.
         """
+        distance = float(np.linalg.norm(segment_vector))
         velocities = np.linspace(1.0, 30.0, 200)
-        energies = [physics_model.calculate_energy(distance, v) for v in velocities]
+        energies = [physics_model.calculate_energy(segment_vector, v) for v in velocities]
 
         fig, ax = plt.subplots(figsize=(8, 5))
         ax.plot(velocities, energies, "b-", linewidth=2, label="Energy vs Velocity")
@@ -49,10 +50,11 @@ class Visualizer:
         )
         ax.axvline(v_opt, color="red", linestyle="--", alpha=0.5)
 
-        ax.set_xlabel("Velocity [m/s]", fontsize=14)
+        ax.set_xlabel("Ground Velocity [m/s]", fontsize=14)
         ax.set_ylabel("Energy [Joules]", fontsize=14)
+        wind_str = f"[{physics_model.wind[0]:.1f}, {physics_model.wind[1]:.1f}] m/s"
         ax.set_title(
-            f"Segment Energy vs Velocity (d = {distance} m)", fontsize=16
+            f"Energy vs Velocity (d = {distance:.0f} m, wind = {wind_str})", fontsize=16
         )
         ax.tick_params(axis="both", labelsize=12)
         ax.legend(fontsize=12)
@@ -69,6 +71,7 @@ class Visualizer:
         optimal_energy: float,
         naive_order: list[int],
         naive_energy: float,
+        wind_vector: np.ndarray = np.array([0.0, 0.0]),
     ) -> None:
         """
         Plot 2D waypoints with naive vs optimized route comparison (1x2 subplot).
@@ -79,8 +82,32 @@ class Visualizer:
             optimal_energy: Total energy cost of optimized route (J).
             naive_order: Ordered list of waypoint indices (naive 0..N-1 route).
             naive_energy: Total energy cost of naive route (J).
+            wind_vector: 2D wind vector (w_x, w_y) in m/s.
         """
         fig, (ax_route, ax_bars) = plt.subplots(1, 2, figsize=(14, 6))
+
+        # Add background wind field if wind is non-zero
+        wind_speed = float(np.linalg.norm(wind_vector))
+        if wind_speed > 0.1:
+            x_min, x_max = waypoints[:, 0].min(), waypoints[:, 0].max()
+            y_min, y_max = waypoints[:, 1].min(), waypoints[:, 1].max()
+            # Pad the range for arrows
+            pad_x = (x_max - x_min) * 0.1 + 50
+            pad_y = (y_max - y_min) * 0.1 + 50
+            
+            x_grid = np.linspace(x_min - pad_x, x_max + pad_x, 10)
+            y_grid = np.linspace(y_min - pad_y, y_max + pad_y, 10)
+            X, Y = np.meshgrid(x_grid, y_grid)
+            U = np.full(X.shape, wind_vector[0])
+            V = np.full(X.shape, wind_vector[1])
+            
+            ax_route.quiver(
+                X, Y, U, V, 
+                color="gray", 
+                alpha=0.2, 
+                pivot="middle",
+                label=f"Wind ({wind_speed:.1f} m/s)"
+            )
 
         num_arrows_per_segment = 4
         arrow_style = "->,head_width=0.15,head_length=0.1"

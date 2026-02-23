@@ -23,19 +23,22 @@ class RoutingOptimizer:
         """
         self.physics = physics_model
 
-    def find_optimal_velocity(self, distance: float) -> tuple[float, float]:
+    def find_optimal_velocity(self, segment_vector: np.ndarray) -> tuple[float, float]:
         """
         Find velocity v > 0.1 that minimizes segment energy.
 
         Args:
-            distance: Segment length in meters.
+            segment_vector: 2D segment vector in meters.
 
         Returns:
             (optimal_velocity, minimum_energy) in (m/s, Joules).
         """
+        distance = float(np.linalg.norm(segment_vector))
+        if distance == 0:
+            return 0.0, 0.0
 
         def energy_func(v: float) -> float:
-            return self.physics.calculate_energy(distance, v)
+            return self.physics.calculate_energy(segment_vector, v)
 
         result = minimize_scalar(
             energy_func,
@@ -45,33 +48,32 @@ class RoutingOptimizer:
         return float(result.x), float(result.fun)
 
     def build_energy_matrix(
-        self, distance_matrix: np.ndarray
-    ) -> tuple[np.ndarray, float]:
+        self, waypoints: np.ndarray
+    ) -> tuple[np.ndarray, dict]:
         """
-        Build N x N energy cost matrix from distances.
+        Build N x N energy cost matrix from waypoints.
 
         Args:
-            distance_matrix: N x N Euclidean distance matrix.
+            waypoints: N x 2 array of waypoint coordinates.
 
         Returns:
-            (energy_matrix, universal_optimal_velocity). With zero wind, v_opt
-            is constant for all segments.
+            (energy_matrix, dictionary of optimal velocities per segment).
         """
-        n = distance_matrix.shape[0]
+        n = waypoints.shape[0]
         energy_matrix = np.zeros((n, n))
-        v_opt_universal = None
+        optimal_velocities = {}
 
         for i in range(n):
             for j in range(n):
                 if i == j:
                     energy_matrix[i, j] = 0.0
                 else:
-                    v_opt, e_min = self.find_optimal_velocity(distance_matrix[i, j])
+                    segment = waypoints[j] - waypoints[i]
+                    v_opt, e_min = self.find_optimal_velocity(segment)
                     energy_matrix[i, j] = e_min
-                    if v_opt_universal is None:
-                        v_opt_universal = v_opt
+                    optimal_velocities[(i, j)] = v_opt
 
-        return energy_matrix, float(v_opt_universal)
+        return energy_matrix, optimal_velocities
 
     def solve_tsp(self, cost_matrix: np.ndarray, method: str = "brute") -> list[int]:
         """
@@ -90,6 +92,8 @@ class RoutingOptimizer:
 
         if method == "nearest_neighbor":
             return self._solve_nearest_neighbor(cost_matrix)
+        if method == "held_karp":
+            return self._solve_held_karp(cost_matrix)
         return self._solve_brute(cost_matrix)
 
     def _solve_brute(self, cost_matrix: np.ndarray) -> list[int]:
@@ -127,3 +131,59 @@ class RoutingOptimizer:
             unvisited.remove(best_next)
 
         return order
+
+    def _solve_held_karp(self, cost_matrix: np.ndarray) -> list[int]:
+        """Exact TSP via Held-Karp dynamic programming."""
+        n = cost_matrix.shape[0]
+        # Memoization table: maps (frozenset of visited_nodes, last_node) -> (cost, previous_node)
+        memo = {}
+
+        # Initialize base cases: path from start (0) to each other node directly
+        for i in range(1, n):
+            memo[(frozenset([i]), i)] = (cost_matrix[0, i], 0)
+
+        # Iterate over subset sizes
+        for subset_size in range(2, n):
+            for subset in itertools.combinations(range(1, n), subset_size):
+                subset_fs = frozenset(subset)
+                for next_node in subset:
+                    # Previous subset without next_node
+                    prev_subset = subset_fs - {next_node}
+                    
+                    min_cost = float('inf')
+                    min_prev_node = None
+                    
+                    for prev_node in prev_subset:
+                        cost = memo[(prev_subset, prev_node)][0] + cost_matrix[prev_node, next_node]
+                        if cost < min_cost:
+                            min_cost = cost
+                            min_prev_node = prev_node
+                            
+                    memo[(subset_fs, next_node)] = (min_cost, min_prev_node)
+
+        # Connect the last node back to the start (0)
+        all_nodes_fs = frozenset(range(1, n))
+        min_cost = float('inf')
+        last_node = None
+        
+        for node in range(1, n):
+            cost = memo[(all_nodes_fs, node)][0] + cost_matrix[node, 0]
+            if cost < min_cost:
+                min_cost = cost
+                last_node = node
+
+        # Backtrack to find the optimal path
+        path = []
+        curr_node = last_node
+        curr_subset = all_nodes_fs
+        
+        while curr_node is not None and curr_node != 0:
+            path.append(curr_node)
+            _, prev_node = memo[(curr_subset, curr_node)]
+            curr_subset = curr_subset - {curr_node}
+            curr_node = prev_node
+            
+        path.append(0)
+        path.reverse()
+        
+        return path
