@@ -76,15 +76,25 @@ def main(simulation_config: SimulationConfig | None = None, tsp_method: str = "b
 
     visualizer = Visualizer()
     visualizer.plot_energy_curve(physics, distance=1000.0)
-    visualizer.plot_route(
-        waypoints,
-        optimal_order,
-        optimal_energy,
-        naive_order,
-        naive_energy,
+
+    # Two-panel naive vs optimized route
+    visualizer.plot_routes(
+        waypoints=waypoints,
+        naive_order=naive_order,
+        optimal_order=optimal_order,
     )
 
-    print("\nPlots saved: plots/energy_curve.png, plots/route_map.png")
+    # Separate total energy figure
+    visualizer.plot_total_energy(
+        naive_energy=naive_energy,
+        optimized_energy=optimal_energy,
+        filename="total_energy.png",
+    )
+
+    print("\nPlots saved:")
+    print(" - plots/energy_curve.png")
+    print(" - plots/route_map.png")
+    print(" - plots/total_energy.png")
 
 
 if __name__ == "__main__":
