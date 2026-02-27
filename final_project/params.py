@@ -26,6 +26,8 @@ class SimulationConfig:
     bounds: tuple[float, float] = (0.0, 2000.0)
     waypoint_set: Optional[list[tuple[float, float]]] = None
     seed: Optional[int] = None
+    wind_vector: tuple[float, float] = (0.0, 0.0)
+    distribution: str = "uniform"
 
 
 def get_default_params() -> DroneParams:
@@ -57,4 +59,5 @@ def get_test_sim_config() -> SimulationConfig:
             (250.0, 250.0),
             (750.0, 750.0),
         ],
+        wind_vector=(5.0, -2.0),
     )
