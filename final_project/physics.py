@@ -1,14 +1,15 @@
 """Aerodynamic power and energy models for drone flight segments."""
 
 import numpy as np
-
 from params import DroneParams
 
 
 class DronePhysics:
     """Aerodynamic power and energy calculations for drone flight."""
 
-    def __init__(self, params: DroneParams, wind_vector: tuple[float, float] = (0.0, 0.0)) -> None:
+    def __init__(
+        self, params: DroneParams, wind_vector: tuple[float, float] = (0.0, 0.0)
+    ) -> None:
         """
         Initialize with physical constants.
 
@@ -22,6 +23,10 @@ class DronePhysics:
     def calculate_power(self, v: float) -> float:
         """
         Compute aerodynamic power: P(v) = c1 + c2*v^3 + c3/v.
+        where v is the airspeed (ground speed adjusted for wind).
+        c1: Blade profile power (constant)
+        c2: Parasitic drag coefficient (scales with v^3)
+        c3: Induced power coefficient (scales with 1/v)
 
         Args:
             v: Flight velocity in m/s.
@@ -45,17 +50,17 @@ class DronePhysics:
         """
         if v_ground <= 0:
             return float("inf")
-            
+
         distance = float(np.linalg.norm(segment_vector))
         if distance == 0:
             return 0.0
-            
+
         time = distance / v_ground
-        
+
         # v_ground_vec points in the direction of the segment
         v_ground_vec = (segment_vector / distance) * v_ground
         # v_air = v_ground - wind
         v_air_vec = v_ground_vec - self.wind
         v_air = float(np.linalg.norm(v_air_vec))
-        
+
         return self.calculate_power(v_air) * time
