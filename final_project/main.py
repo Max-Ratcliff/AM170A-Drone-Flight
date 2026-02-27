@@ -3,12 +3,8 @@
 import argparse
 
 from optimizer import RoutingOptimizer
-from params import (
-    SimulationConfig,
-    get_default_params,
-    get_default_sim_config,
-    get_test_sim_config,
-)
+from params import (SimulationConfig, get_default_params,
+                    get_default_sim_config, get_test_sim_config)
 from physics import DronePhysics
 from plotting import Visualizer
 from targets import Targets
