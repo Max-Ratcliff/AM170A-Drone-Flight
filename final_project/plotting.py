@@ -53,7 +53,7 @@ class Visualizer:
         fig, axes = plt.subplots(1, 3, figsize=(18, 6.5))
 
         def draw_route(ax: Axes, order: list[int], title: str) -> None:
-            # Plot all waypoints
+            # Plot waypoints
             ax.scatter(
                 waypoints[:, 0],
                 waypoints[:, 1],
@@ -65,7 +65,6 @@ class Visualizer:
                 label="Waypoint",
             )
 
-            # Highlight start/end node (node 0)
             start_x, start_y = waypoints[0]
             ax.scatter(
                 start_x,

@@ -31,20 +31,19 @@ def main(simulation_config: SimulationConfig | None = None) -> None:
     physics = DronePhysics(params)
     optimizer = RoutingOptimizer(physics)
 
-    # Build energy/time matrices using physics-based segment optimization
     energy_matrix, time_matrix = optimizer.build_energy_matrix(distance_matrix)
 
     # --- Three routes ---
     naive_order = list(range(n))
 
-    # "Optimized" = exact (for small n) using brute-force TSP over energy_matrix
+    # Optimized = Using brute-force or NN TSP over energy_matrix (only works for small Ns)
     optimized_order = optimizer.solve_tsp(energy_matrix, method="nearest_neighbor")
     
 
     # "Super" = nearest-neighbor initialization + 2-opt local improvement
     super_order = optimizer.solve_tsp(energy_matrix, method="nn_2opt")
 
-    # --- Helpers for totals ---
+    # Helpers functions 
     def route_energy(order: list[int]) -> float:
         total = 0.0
         for k in range(len(order)):
@@ -90,7 +89,6 @@ def main(simulation_config: SimulationConfig | None = None) -> None:
     visualizer = Visualizer()
     visualizer.plot_energy_curve(physics, distance=1000.0)
 
-    # 3-panel route plot + 3-bar energy plot
     visualizer.plot_routes_three(
         waypoints=waypoints,
         naive_order=naive_order,

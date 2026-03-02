@@ -19,7 +19,6 @@ class RoutingOptimizer:
       - nearest_neighbor: greedy heuristic
       - nn_2opt: nearest neighbor initialization + 2-opt local search improvement
     """
-
     def __init__(self, physics_model: DronePhysics) -> None:
         self.physics = physics_model
 
@@ -42,9 +41,7 @@ class RoutingOptimizer:
                     time_matrix[i, j] = seg.t_opt
 
         return energy_matrix, time_matrix
-
-    # ------------------ Public solver ------------------
-
+    #Solver
     def solve_tsp(self, cost_matrix: np.ndarray, method: str = "brute") -> list[int]:
         """
         method:
@@ -64,9 +61,7 @@ class RoutingOptimizer:
             return improved
 
         return self._solve_brute(cost_matrix)
-
-    # ------------------ Core utilities ------------------
-
+    #Core utilities
     @staticmethod
     def tour_cost(cost_matrix: np.ndarray, order: list[int]) -> float:
         """Cycle cost: order[0] -> ... -> order[-1] -> order[0]."""
@@ -104,8 +99,7 @@ class RoutingOptimizer:
 
         return order
 
-    # ------------------ 2-opt improvement ------------------
-
+    #2-opt improvement
     def _two_opt(self, cost_matrix: np.ndarray, order: list[int]) -> list[int]:
         """
         Standard 2-opt local search for a Hamiltonian cycle.
@@ -113,7 +107,7 @@ class RoutingOptimizer:
         """
         n = len(order)
         if n < 4:
-            return order[:]  # nothing to improve
+            return order[:]
 
         best = order[:]
         best_cost = self.tour_cost(cost_matrix, best)
@@ -121,17 +115,12 @@ class RoutingOptimizer:
         improved = True
         while improved:
             improved = False
-
-            # i and k define the segment [i:k] to reverse (2-opt move)
-            # We keep index 0 fixed, so start i at 1.
             for i in range(1, n - 2):
                 for k in range(i + 1, n - 1):
                     new_order = best[:]
                     new_order[i : k + 1] = reversed(new_order[i : k + 1])
 
                     new_cost = self.tour_cost(cost_matrix, new_order)
-
-                    # Accept first improving move (fast); could also do best-improvement
                     if new_cost < best_cost:
                         best = new_order
                         best_cost = new_cost

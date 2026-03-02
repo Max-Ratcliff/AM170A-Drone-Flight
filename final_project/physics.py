@@ -21,7 +21,7 @@ class SegmentResult:
 class DronePhysics:
     """
     Segment model:
-      v(t) = alpha * t * (T - t)    (scalar speed along the segment direction)
+      v(t) = alpha * t * (T - t) (scalar speed along the segment direction)
       alpha chosen so that total distance traveled equals d.
 
     With linear drag (scalar along direction):
@@ -33,8 +33,7 @@ class DronePhysics:
     def __init__(self, params: DroneParams) -> None:
         self.p = params
 
-    # ---------- Core kinematics (1D along the segment) ----------
-
+    # Core kinematics (1D along the segment)
     @staticmethod
     def _alpha_for_distance(d: float, T: float) -> float:
         """
@@ -58,8 +57,7 @@ class DronePhysics:
         # s(t) = ∫ v dt = alpha * (T t^2 / 2 - t^3 / 3)
         return alpha * (T * (t**2) / 2.0 - (t**3) / 3.0)
 
-    # ---------- Energy ----------
-
+    # Energy
     def segment_energy(self, d: float, T: float) -> float:
         """
         Compute energy for a segment of length d executed in time T.
@@ -76,8 +74,8 @@ class DronePhysics:
         n = max(20, int(self.p.integration_steps))
         t = np.linspace(0.0, T, n)
 
-        v = self._v_profile(alpha, T, t)        # speed
-        a = self._a_profile(alpha, T, t)        # accel
+        v = self._v_profile(alpha, T, t) # speed
+        a = self._a_profile(alpha, T, t) # acceleration
         F = self.p.mass * a + self.p.drag_coeff * v  # required thrust (1D)
 
         power_thrust = np.abs(F * v)
@@ -85,8 +83,7 @@ class DronePhysics:
 
         return float(np.trapz(power_total, t))
 
-    # ---------- Bounds + optimization over T ----------
-
+    # Bounds + optimization over T 
     def feasible_time_bounds(self, d: float) -> tuple[float, float]:
         """
         Compute a conservative [T_low, T_high] for searching T.

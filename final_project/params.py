@@ -43,11 +43,11 @@ class SimulationConfig:
 def get_default_params() -> DroneParams:
     """Return the default quadcopter parameters (DJI Phantom 4 baseline)."""
     return DroneParams(
-        mass=1.38,          # kg
-        drag_coeff=1.00,    # N/(m/s)
-        hover_power=60.0,  # W
-        v_max=18.0,         # m/s
-        a_max=6.0,          # m/s^2
+        mass=1.38, # kg
+        drag_coeff=1.00, # N/(m/s)
+        hover_power=60.0, # W
+        v_max=18.0, # m/s
+        a_max=6.0, # m/s^2
         integration_steps=600,
         t_upper_per_meter=0.7,
     )
