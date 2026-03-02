@@ -1,11 +1,3 @@
-"""Orchestrates the drone routing optimization pipeline (stop at each waypoint).
-
-Outputs (in ./plots):
-- energy_curve.png
-- route_map.png          (3 panels: naive | optimized (exact) | super (NN+2opt))
-- total_energy.png       (3 bars: naive | optimized | super)
-"""
-
 from __future__ import annotations
 
 import argparse
@@ -46,10 +38,8 @@ def main(simulation_config: SimulationConfig | None = None) -> None:
     naive_order = list(range(n))
 
     # "Optimized" = exact (for small n) using brute-force TSP over energy_matrix
-    if n <= 10:
-        optimized_order = optimizer.solve_tsp(energy_matrix, method="brute")
-    else:
-        optimized_order = optimizer.solve_tsp(energy_matrix, method="nn_2opt")
+    optimized_order = optimizer.solve_tsp(energy_matrix, method="nearest_neighbor")
+    
 
     # "Super" = nearest-neighbor initialization + 2-opt local improvement
     super_order = optimizer.solve_tsp(energy_matrix, method="nn_2opt")
@@ -82,9 +72,9 @@ def main(simulation_config: SimulationConfig | None = None) -> None:
     print(f"Waypoints (x,y):\n{waypoints}\n")
 
     print("=== Route Indices (cycle closes back to 0) ===")
-    print(f"Naive:     {naive_order}")
-    print(f"Optimized: {optimized_order}   (exact brute-force over energy)")
-    print(f"Super:     {super_order}       (nearest-neighbor + 2-opt)\n")
+    print(f"Naive: {naive_order}")
+    print(f"Optimized: {optimized_order} (exact brute-force over energy)")
+    print(f"Super: {super_order} (nearest-neighbor + 2-opt)\n")
 
     print("=== Total Energy Comparison ===")
     print(f"Naive energy:     {naive_energy:.2f} J")

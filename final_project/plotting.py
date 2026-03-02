@@ -39,7 +39,6 @@ class Visualizer:
         plt.close(fig)
 
     # ---------------- 3-panel route map ----------------
-
     def plot_routes_three(
         self,
         waypoints: np.ndarray,
@@ -49,63 +48,94 @@ class Visualizer:
         filename: str = "route_map.png",
     ) -> None:
         """
-        Saves plots/route_map.png with 3 panels:
-          (1) Naive
-          (2) Optimized (exact: brute/HK)
-          (3) Super (NN + 2-opt)
+        3-panel route comparison with legend and start/end highlighting.
         """
-        fig, axes = plt.subplots(1, 3, figsize=(18, 6.2))
+        fig, axes = plt.subplots(1, 3, figsize=(18, 6.5))
 
         def draw_route(ax: Axes, order: list[int], title: str) -> None:
-            ax.scatter(waypoints[:, 0], waypoints[:, 1], s=70, zorder=3)
+            # Plot all waypoints
+            ax.scatter(
+                waypoints[:, 0],
+                waypoints[:, 1],
+                s=90,
+                color="#4C72B0",
+                edgecolor="black",
+                linewidth=1.2,
+                zorder=3,
+                label="Waypoint",
+            )
 
+            # Highlight start/end node (node 0)
+            start_x, start_y = waypoints[0]
+            ax.scatter(
+                start_x,
+                start_y,
+                s=200,
+                facecolor="none",
+                edgecolor="green",
+                linewidth=3,
+                zorder=4,
+                label="Start/End",
+            )
+
+            # Label nodes
             for idx, (x, y) in enumerate(waypoints):
-                ax.text(x + 10, y + 10, str(idx), fontsize=12)
+                ax.text(x + 10, y + 10, str(idx), fontsize=11)
 
-            num_arrows_per_segment = 4
-            arrow_style = "->,head_width=0.15,head_length=0.1"
-
+            # Draw route
             for k in range(len(order)):
                 i = order[k]
                 j = order[(k + 1) % len(order)]
+
                 xi, yi = waypoints[i]
                 xj, yj = waypoints[j]
 
-                for t in np.linspace(0, 1, num_arrows_per_segment + 1)[:-1]:
-                    t_next = t + 1.0 / (num_arrows_per_segment + 1)
-                    x0 = xi + t * (xj - xi)
-                    y0 = yi + t * (yj - yi)
-                    x1 = xi + t_next * (xj - xi)
-                    y1 = yi + t_next * (yj - yi)
+                ax.plot(
+                    [xi, xj],
+                    [yi, yj],
+                    linestyle="--",
+                    linewidth=2,
+                    color="blue",
+                    alpha=0.9,
+                    label="Route" if k == 0 else "",
+                )
 
-                    ax.annotate(
-                        "",
-                        xy=(x1, y1),
-                        xytext=(x0, y0),
-                        arrowprops=dict(
-                            arrowstyle=arrow_style,
-                            lw=2.1,
-                            alpha=0.9,
-                        ),
-                    )
+                # Direction arrows
+                ax.annotate(
+                    "",
+                    xy=(xj, yj),
+                    xytext=(xi, yi),
+                    arrowprops=dict(
+                        arrowstyle="->",
+                        lw=1.8,
+                        color="blue",
+                        alpha=0.8,
+                    ),
+                )
 
             ax.set_title(title, fontsize=16)
-            ax.set_xlabel("x")
-            ax.set_ylabel("y")
+            ax.set_xlabel("x [m]")
+            ax.set_ylabel("y [m]")
             ax.grid(True, alpha=0.35)
             ax.set_aspect("equal", adjustable="box")
 
+            # Add legend (avoid duplicates)
+            handles, labels = ax.get_legend_handles_labels()
+            by_label = dict(zip(labels, handles))
+            ax.legend(by_label.values(), by_label.keys(), fontsize=11)
+
         draw_route(axes[0], naive_order, "Naive Route")
-        draw_route(axes[1], optimized_order, "Optimized Route (Exact)")
-        draw_route(axes[2], super_order, "Super Route (NN + 2-opt)")
+        draw_route(axes[1], optimized_order, "Nearest Neighbor Route")
+        draw_route(axes[2], super_order, "NN + 2-opt Route")
+
+        fig.suptitle("Drone Route Comparison", fontsize=20, y=1.02)
 
         fig.tight_layout()
         PLOTS_DIR.mkdir(parents=True, exist_ok=True)
-        fig.savefig(PLOTS_DIR / filename, dpi=150)
+        fig.savefig(PLOTS_DIR / filename, dpi=200, bbox_inches="tight")
         plt.close(fig)
 
     # ---------------- 3-bar energy comparison ----------------
-
     def plot_total_energy_three(
         self,
         naive_energy: float,
@@ -114,20 +144,39 @@ class Visualizer:
         filename: str = "total_energy.png",
     ) -> None:
         """
-        Saves plots/total_energy.png with 3 bars:
-        Naive, Optimized (exact), Super (NN + 2-opt)
+        Saves plots/total_energy.png with 3 colored bars and value labels above.
         """
-        fig, ax = plt.subplots(figsize=(8.5, 5.8))
+        fig, ax = plt.subplots(figsize=(9, 6))
 
-        labels = ["Naive", "Optimized", "Super (NN+2opt)"]
+        labels = ["Naive", "Nearest Neighbor", "NN + 2-opt"]
         vals = [naive_energy, optimized_energy, super_energy]
 
-        ax.bar(labels, vals)
-        ax.set_title("Total Energy Comparison", fontsize=18)
-        ax.set_ylabel("Energy [J]", fontsize=13)
-        ax.grid(True, axis="y", alpha=0.4)
+        # Nice distinct academic-style colors
+        colors = ["#4C72B0", "#55A868", "#C44E52"]
+
+        bars = ax.bar(labels, vals, color=colors, edgecolor="black", linewidth=1.2)
+
+        ax.set_title("Total Energy Comparison", fontsize=20, pad=15)
+        ax.set_ylabel("Energy [J]", fontsize=14)
+        ax.grid(True, axis="y", alpha=0.35)
+        ax.set_axisbelow(True)
+
+        # Add value labels above bars
+        for bar in bars:
+            height = bar.get_height()
+            ax.text(
+                bar.get_x() + bar.get_width() / 2,
+                height,
+                f"{height:,.0f} J",
+                ha="center",
+                va="bottom",
+                fontsize=12,
+            )
+
+        # Add slight vertical padding so text doesn’t clip
+        ax.set_ylim(0, max(vals) * 1.15)
 
         fig.tight_layout()
         PLOTS_DIR.mkdir(parents=True, exist_ok=True)
-        fig.savefig(PLOTS_DIR / filename, dpi=150)
+        fig.savefig(PLOTS_DIR / filename, dpi=200)
         plt.close(fig)
