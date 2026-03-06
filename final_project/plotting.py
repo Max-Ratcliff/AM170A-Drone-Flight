@@ -220,7 +220,7 @@ class Visualizer:
             f"Drone Route Optimization Comparison ({wind_str})", fontsize=24, y=0.98
         )
 
-        fig.tight_layout(rect=(0, 0, 1, 0.96))
+        fig.tight_layout(rect=(0, 0.03, 1, 0.95), h_pad=3)
         PLOTS_DIR.mkdir(parents=True, exist_ok=True)
         fig.savefig(PLOTS_DIR / filename, dpi=200, bbox_inches="tight")
         plt.close(fig)

@@ -72,7 +72,7 @@ def main(
         primary_method = tsp_method
     else:
         # Default: run all safe solvers (skip brute-force automatically)
-        methods_to_run = ["nearest_neighbor", "nn_2opt", "held_karp"]
+        methods_to_run = ["held_karp", "nearest_neighbor", "nn_2opt"]
         primary_method = "held_karp"
 
     for m in methods_to_run:
