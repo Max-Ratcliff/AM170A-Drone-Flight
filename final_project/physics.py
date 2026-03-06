@@ -13,6 +13,7 @@ from scipy.optimize import minimize_scalar
 @dataclass(frozen=True)
 class SegmentResult:
     """Convenient bundle of optimal segment data."""
+
     distance: float
     t_opt: float
     e_opt: float
@@ -32,7 +33,9 @@ class DronePhysics:
       Energy = ∫ Power(t) dt
     """
 
-    def __init__(self, params: DroneParams, wind_vector: tuple[float, float] = (0.0, 0.0)) -> None:
+    def __init__(
+        self, params: DroneParams, wind_vector: tuple[float, float] = (0.0, 0.0)
+    ) -> None:
         self.p = params
         self.wind = np.array(wind_vector)
 
@@ -68,7 +71,7 @@ class DronePhysics:
         """
         if T <= 0:
             return float("inf")
-        
+
         d = float(np.linalg.norm(segment_vector))
         if d == 0:
             # If no movement, just hover for T seconds
@@ -82,19 +85,19 @@ class DronePhysics:
         n = max(20, int(self.p.integration_steps))
         t = np.linspace(0.0, T, n)
 
-        v_g = self._v_profile(alpha, T, t) # ground speed scalar
-        a = self._a_profile(alpha, T, t) # acceleration scalar
-        
+        v_g = self._v_profile(alpha, T, t)  # ground speed scalar
+        a = self._a_profile(alpha, T, t)  # acceleration scalar
+
         # Thrust component along segment: m*a + C*(v_g - w_parallel)
         # We assume power = hover_power + |F_thrust_parallel * v_g|
         f_thrust_parallel = self.p.mass * a + self.p.drag_coeff * (v_g - w_parallel)
-        
+
         power_thrust = np.abs(f_thrust_parallel * v_g)
         power_total = self.p.hover_power + power_thrust
 
         return float(np.trapz(power_total, t))
 
-    # Bounds + optimization over T 
+    # Bounds + optimization over T
     def feasible_time_bounds(self, d: float) -> tuple[float, float]:
         """
         Compute a conservative [T_low, T_high] for searching T.

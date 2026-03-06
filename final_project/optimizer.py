@@ -22,9 +22,7 @@ class RoutingOptimizer:
         """
         self.physics = physics_model
 
-    def build_energy_matrix(
-        self, waypoints: np.ndarray
-    ) -> tuple[np.ndarray, dict]:
+    def build_energy_matrix(self, waypoints: np.ndarray) -> tuple[np.ndarray, dict]:
         """
         Build N x N energy cost matrix from waypoints.
 
@@ -66,7 +64,7 @@ class RoutingOptimizer:
             init = self._solve_nearest_neighbor(cost_matrix)
             improved = self._two_opt(cost_matrix, init)
             return improved
-            
+
         return self._solve_brute(cost_matrix)
 
     def _solve_brute(self, cost_matrix: np.ndarray) -> list[int]:
@@ -114,17 +112,20 @@ class RoutingOptimizer:
                 subset_fs = frozenset(subset)
                 for next_node in subset:
                     prev_subset = subset_fs - {next_node}
-                    min_cost = float('inf')
+                    min_cost = float("inf")
                     min_prev_node = None
                     for prev_node in prev_subset:
-                        cost = memo[(prev_subset, prev_node)][0] + cost_matrix[prev_node, next_node]
+                        cost = (
+                            memo[(prev_subset, prev_node)][0]
+                            + cost_matrix[prev_node, next_node]
+                        )
                         if cost < min_cost:
                             min_cost = cost
                             min_prev_node = prev_node
                     memo[(subset_fs, next_node)] = (min_cost, min_prev_node)
 
         all_nodes_fs = frozenset(range(1, n))
-        min_cost = float('inf')
+        min_cost = float("inf")
         last_node = None
         for node in range(1, n):
             cost = memo[(all_nodes_fs, node)][0] + cost_matrix[node, 0]

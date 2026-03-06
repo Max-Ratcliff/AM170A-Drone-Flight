@@ -9,14 +9,15 @@ from typing import Optional
 @dataclass(frozen=True)
 class DroneParams:
     """Physical + numerical params for the segment energy model."""
+
     # Physics
-    mass: float # kg
-    drag_coeff: float # N / (m/s)  (linear drag coefficient C)
-    hover_power: float # W baseline power draw (electronics/hover)
+    mass: float  # kg
+    drag_coeff: float  # N / (m/s)  (linear drag coefficient C)
+    hover_power: float  # W baseline power draw (electronics/hover)
 
     # Feasibility bounds (used to set lower bound on T)
-    v_max: float # m/s (soft constraint)
-    a_max: float # m/s^2  (soft constraint)
+    v_max: float  # m/s (soft constraint)
+    a_max: float  # m/s^2  (soft constraint)
 
     # Numerical integration
     integration_steps: int = 600  # time steps for integrating energy
@@ -28,6 +29,7 @@ class DroneParams:
 @dataclass
 class SimulationConfig:
     """Simulation parameters: waypoints, bounds, and random seed."""
+
     num_targets: int = 5
     bounds: tuple[float, float] = (0.0, 2000.0)
     waypoint_set: Optional[list[tuple[float, float]]] = None

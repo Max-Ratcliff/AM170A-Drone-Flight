@@ -1,12 +1,11 @@
 """Visualization of energy curves and optimal routes."""
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Dict, List, Tuple
+from typing import TYPE_CHECKING, Dict, List
 
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.axes import Axes
-from matplotlib.lines import Line2D
 from params import get_default_params
 from physics import DronePhysics
 
@@ -89,12 +88,12 @@ class Visualizer:
 
         wind_str = f"[{base_physics.wind[0]:.1f}, {base_physics.wind[1]:.1f}] m/s"
         ax.set_title(
-            f"Energy Sensitivity Analysis (d = {d:.0f}m, wind = {wind_str})",
+            f"Energy VS Drag Analysis (d = {d:.0f}m, wind = {wind_str})",
             fontsize=16,
         )
 
         ax.set_ylim(
-            0, np.percentile(current_energy, 95) * 1.2
+            0, float(np.percentile(current_energy, 95) * 1.2)
         )  # Avoid zooming out too much due to small T
         ax.grid(True, alpha=0.3)
         ax.legend(fontsize=10)
@@ -221,7 +220,7 @@ class Visualizer:
             f"Drone Route Optimization Comparison ({wind_str})", fontsize=20, y=0.98
         )
 
-        fig.tight_layout(rect=[0, 0, 1, 0.96])
+        fig.tight_layout(rect=(0, 0, 1, 0.96))
         PLOTS_DIR.mkdir(parents=True, exist_ok=True)
         fig.savefig(PLOTS_DIR / filename, dpi=200, bbox_inches="tight")
         plt.close(fig)

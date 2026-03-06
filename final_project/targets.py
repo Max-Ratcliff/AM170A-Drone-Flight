@@ -45,36 +45,44 @@ class Targets:
         """
         if self._waypoint_set is not None:
             return np.array(self._waypoint_set, dtype=np.float64)
-        
+
         low, high = self.bounds
-        
+
         if self.distribution == "clustered":
             # Generate 3 clusters
             num_clusters = 3
-            cluster_centers = self._rng.uniform(low=low, high=high, size=(num_clusters, 2))
+            cluster_centers = self._rng.uniform(
+                low=low, high=high, size=(num_clusters, 2)
+            )
             waypoints = []
             for i in range(self.num_targets):
                 center = cluster_centers[i % num_clusters]
-                point = center + self._rng.normal(scale=(high-low)/15, size=2)
+                point = center + self._rng.normal(scale=(high - low) / 15, size=2)
                 waypoints.append(np.clip(point, low, high))
             return np.array(waypoints)
-            
+
         elif self.distribution == "grid":
             # Fit points to a grid
             grid_size = int(np.ceil(np.sqrt(self.num_targets)))
-            x = np.linspace(low + (high-low)/10, high - (high-low)/10, grid_size)
-            y = np.linspace(low + (high-low)/10, high - (high-low)/10, grid_size)
+            x = np.linspace(
+                low + (high - low) / 10, high - (high - low) / 10, grid_size
+            )
+            y = np.linspace(
+                low + (high - low) / 10, high - (high - low) / 10, grid_size
+            )
             xv, yv = np.meshgrid(x, y)
             grid_points = np.vstack([xv.ravel(), yv.ravel()]).T
             # Select random points from the grid and add minor jitter
-            indices = self._rng.choice(len(grid_points), self.num_targets, replace=False)
-            jitter = self._rng.normal(scale=(high-low)/100, size=(self.num_targets, 2))
+            indices = self._rng.choice(
+                len(grid_points), self.num_targets, replace=False
+            )
+            jitter = self._rng.normal(
+                scale=(high - low) / 100, size=(self.num_targets, 2)
+            )
             return grid_points[indices] + jitter
 
         # Default: Uniform
-        waypoints = self._rng.uniform(
-            low=low, high=high, size=(self.num_targets, 2)
-        )
+        waypoints = self._rng.uniform(low=low, high=high, size=(self.num_targets, 2))
         return waypoints.astype(np.float64)
 
     def get_distance_matrix(self, waypoints: np.ndarray) -> np.ndarray:
