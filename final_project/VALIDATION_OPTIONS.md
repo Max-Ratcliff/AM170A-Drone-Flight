@@ -9,26 +9,6 @@ To strengthen the "Model & Methods" section of the paper, we can implement the f
 - **Method:** Create a "Vacuum Model" where drag $C = 0$. In this case, the energy integral $\int (P_{hover} + |ma \cdot v|) dt$ can be solved analytically.
 - **Validation:** Compare the code's output for $C=0$ against the hand-calculated analytical value. Matching these confirms the integration logic is sound.
 
-## Physical Sensitivity Analysis
-
-**Goal:** Verify that the "Sweet Spot" travel time ($T_{opt}$) responds correctly to physics.
-
-- **Method:** Plot multiple energy curves on one graph while varying one parameter at a time:
-  - **Mass ($m$):** Increasing mass should shift $T_{opt}$ higher (slower flight to save power).
-  - **Drag ($C$):** Increasing drag should shift $T_{opt}$ higher (slower flight to reduce aerodynamic cost).
-  - **Hover Power ($P_{hover}$):** Increasing hover power should shift $T_{opt}$ lower (faster flight to minimize hover time).
-- **Validation:** If the "U-shape" shifts in the expected directions, it confirms the trade-offs are modeled correctly.
-
-## Wind Symmetry Test
-
-**Goal:** Validate the vector math in the wind model.
-
-- **Method:** Compare the energy for a 1000m segment in three cases:
-  1. No wind.
-  2. 5 m/s headwind.
-  3. 5 m/s tailwind.
-- **Validation:** Headwind should significantly increase energy; tailwind should decrease energy (up to a point). This confirms the $F = ma + C(v - w)$ vector implementation is correct.
-
 ## "Distance-Only" Divergence Test
 
 **Goal:** Validate that Energy-TSP is actually different from Distance-TSP.
