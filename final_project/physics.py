@@ -21,21 +21,27 @@ class SegmentResult:
 
 class DronePhysics:
     """
-    Segment model:
-      v(t) = alpha * t * (T - t) (scalar speed along the segment direction)
-      alpha chosen so that total distance traveled equals d.
+    Physics-grounded drone flight model for energy-optimized routing.
 
-    With linear drag and wind:
-      v_ground(t) = v(t) * u (where u is the unit vector of the segment)
-      v_air(t) = v_ground(t) - wind
-      F_thrust(t) = m * a(t) * u + C * v_air(t)
-      Power(t) = hover_power + |F_thrust(t) · v_ground(t)|
-      Energy = ∫ Power(t) dt
+    This model implements a 'stop-at-waypoint' flight profile, where the drone
+    must come to a complete stop at both the beginning and end of every segment.
+    It uses a parabolic velocity profile to minimize mechanical power.
+
+    Attributes:
+        params (DroneParams): Physical constants (mass, drag, power) of the drone.
+        wind (np.ndarray): 2D wind vector influencing aerodynamic drag.
     """
 
     def __init__(
         self, params: DroneParams, wind_vector: tuple[float, float] = (0.0, 0.0)
     ) -> None:
+        """
+        Initialize the physics engine.
+
+        Args:
+            params: Configuration for drone mass, drag coefficient, etc.
+            wind_vector: (x, y) wind velocity in meters per second.
+        """
         self.p = params
         self.wind = np.array(wind_vector)
 
@@ -43,31 +49,50 @@ class DronePhysics:
     @staticmethod
     def _alpha_for_distance(d: float, T: float) -> float:
         """
-        For v(t)=alpha t(T-t):
+        Calculate the scaling factor alpha for the parabolic velocity profile.
+
+        For v(t) = alpha * t * (T - t):
         distance = ∫0^T v(t) dt = alpha * T^3 / 6
         => alpha = 6d / T^3
+
+        Args:
+            d: Target distance for the segment (meters).
+            T: Total travel time (seconds).
+
+        Returns:
+            Kinematic scaling factor alpha.
         """
         return 6.0 * d / (T**3)
 
     @staticmethod
     def _v_profile(alpha: float, T: float, t: np.ndarray) -> np.ndarray:
+        """Parabolic velocity profile: v(t) = alpha * t * (T - t)."""
         return alpha * t * (T - t)
 
     @staticmethod
     def _a_profile(alpha: float, T: float, t: np.ndarray) -> np.ndarray:
-        # derivative of alpha*t(T-t) = alpha*(T - 2t)
+        """Linear acceleration profile: a(t) = alpha * (T - 2t)."""
         return alpha * (T - 2.0 * t)
 
     @staticmethod
     def _s_profile(alpha: float, T: float, t: np.ndarray) -> np.ndarray:
-        # s(t) = ∫ v dt = alpha * (T t^2 / 2 - t^3 / 3)
+        """Distance profile: s(t) = ∫ v dt = alpha * (T * t^2 / 2 - t^3 / 3)."""
         return alpha * (T * (t**2) / 2.0 - (t**3) / 3.0)
 
     # Energy
     def segment_energy(self, segment_vector: np.ndarray, T: float) -> float:
         """
-        Compute energy for a segment executed in time T.
-        Returns +inf if T is non-positive.
+        Compute total energy (Joules) for a segment executed in time T.
+
+        Integrates (P_hover + |F_thrust(t) · v_ground(t)|) dt over [0, T].
+        Includes aerodynamic drag and inertial forces.
+
+        Args:
+            segment_vector: 2D vector (dx, dy) of the segment.
+            T: Travel time (seconds).
+
+        Returns:
+            Total energy consumption in Joules. Returns +inf if T is non-positive.
         """
         if T <= 0:
             return float("inf")
@@ -100,7 +125,16 @@ class DronePhysics:
     # Bounds + optimization over T
     def feasible_time_bounds(self, d: float) -> tuple[float, float]:
         """
-        Compute a conservative [T_low, T_high] for searching T.
+        Compute conservative search bounds [T_low, T_high] for travel time T.
+
+        Bounds are derived from peak velocity (v_max) and peak acceleration (a_max)
+        limits defined in the drone parameters.
+
+        Args:
+            d: Segment distance (meters).
+
+        Returns:
+            A tuple of (T_min, T_max) in seconds.
         """
         if d <= 0:
             return (1e-3, 1.0)
@@ -114,7 +148,18 @@ class DronePhysics:
         return (t_low, t_high)
 
     def find_optimal_time(self, segment_vector: np.ndarray) -> SegmentResult:
-        """Minimize segment_energy(segment_vector, T) over feasible T bounds."""
+        """
+        Minimize segment_energy over travel time T using a bounded 1D search.
+
+        Finds the 'sweet spot' where the sum of hover power (dominates at high T)
+        and mechanical power (dominates at low T) is minimized.
+
+        Args:
+            segment_vector: 2D vector (dx, dy) of the segment.
+
+        Returns:
+            A SegmentResult containing optimized T and the resulting minimum energy E.
+        """
         d = float(np.linalg.norm(segment_vector))
         if d < 0:
             return SegmentResult(distance=d, t_opt=float("nan"), e_opt=float("inf"))

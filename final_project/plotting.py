@@ -83,20 +83,20 @@ class Visualizer:
                 label=f"Increased Drag ($\\lambda={multiplier}C$)",
             )
 
-        ax.set_xlabel("Segment Time $T$ [s]", fontsize=14)
-        ax.set_ylabel("Total Energy $E(T)$ [Joules]", fontsize=14)
+        ax.set_xlabel("Segment Time $T$ [s]", fontsize=18)
+        ax.set_ylabel("Total Energy $E(T)$ [Joules]", fontsize=18)
 
         wind_str = f"[{base_physics.wind[0]:.1f}, {base_physics.wind[1]:.1f}] m/s"
         ax.set_title(
             f"Energy VS Drag Analysis (d = {d:.0f}m, wind = {wind_str})",
-            fontsize=16,
+            fontsize=22,
         )
 
         ax.set_ylim(
             0, float(np.percentile(current_energy, 95) * 1.2)
         )  # Avoid zooming out too much due to small T
         ax.grid(True, alpha=0.3)
-        ax.legend(fontsize=10)
+        ax.legend(fontsize=14)
 
         fig.tight_layout()
         PLOTS_DIR.mkdir(parents=True, exist_ok=True)
@@ -194,9 +194,9 @@ class Visualizer:
                     zorder=2,
                 )
 
-            ax.set_title(f"{title}\nEnergy: {energy:.0f} J", fontsize=14)
-            ax.set_xlabel("x [m]")
-            ax.set_ylabel("y [m]")
+            ax.set_title(f"{title}\nEnergy: {energy:.0f} J", fontsize=18)
+            ax.set_xlabel("x [m]", fontsize=14)
+            ax.set_ylabel("y [m]", fontsize=14)
             ax.grid(True, alpha=0.3)
             ax.set_aspect("equal", adjustable="box")
 
@@ -217,7 +217,7 @@ class Visualizer:
 
         wind_str = f"Wind: [{wind_vector[0]:.1f}, {wind_vector[1]:.1f}] m/s"
         fig.suptitle(
-            f"Drone Route Optimization Comparison ({wind_str})", fontsize=20, y=0.98
+            f"Drone Route Optimization Comparison ({wind_str})", fontsize=24, y=0.98
         )
 
         fig.tight_layout(rect=(0, 0, 1, 0.96))
@@ -252,9 +252,9 @@ class Visualizer:
         bars = ax.bar(labels, vals, color=colors, edgecolor="black", linewidth=1.2)
 
         ax.set_title(
-            "Total Energy Comparison (All Active Solvers)", fontsize=20, pad=15
+            "Total Energy Comparison (All Active Solvers)", fontsize=24, pad=15
         )
-        ax.set_ylabel("Energy [J]", fontsize=14)
+        ax.set_ylabel("Energy [J]", fontsize=18)
         ax.grid(True, axis="y", alpha=0.35)
         ax.set_axisbelow(True)
 
@@ -266,7 +266,7 @@ class Visualizer:
                 f"{height:,.0f} J",
                 ha="center",
                 va="bottom",
-                fontsize=11,
+                fontsize=14,
                 fontweight="bold",
             )
 

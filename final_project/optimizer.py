@@ -1,13 +1,9 @@
 """Routing optimization: time optimization and TSP solution."""
 
 import itertools
-from typing import TYPE_CHECKING
 
 import numpy as np
 from physics import DronePhysics
-
-if TYPE_CHECKING:
-    pass
 
 
 class RoutingOptimizer:

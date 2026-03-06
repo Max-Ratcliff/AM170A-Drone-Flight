@@ -84,25 +84,3 @@ class Targets:
         # Default: Uniform
         waypoints = self._rng.uniform(low=low, high=high, size=(self.num_targets, 2))
         return waypoints.astype(np.float64)
-
-    def get_distance_matrix(self, waypoints: np.ndarray) -> np.ndarray:
-        """
-        Compute the Euclidean distance between all waypoints.
-        each entry (i, j) is the distance from waypoint i to j.
-
-        Args:
-            waypoints: N x 2 array of (x, y) coordinates.
-
-        Returns:
-            N x N symmetric matrix of pairwise distances (meters).
-        """
-        n = waypoints.shape[0]
-        dist_matrix = np.zeros((n, n))
-        for i in range(n):
-            for j in range(n):
-                if i != j:
-                    dist_matrix[i, j] = np.sqrt(
-                        (waypoints[i, 0] - waypoints[j, 0]) ** 2
-                        + (waypoints[i, 1] - waypoints[j, 1]) ** 2
-                    )
-        return dist_matrix
