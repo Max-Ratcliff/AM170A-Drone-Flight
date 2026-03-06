@@ -1,4 +1,4 @@
-"""Physics + energy model for stop-at-waypoint segments."""
+"""Physics + energy model for stop-at-waypoint segments with wind support."""
 
 from __future__ import annotations
 
@@ -13,7 +13,6 @@ from scipy.optimize import minimize_scalar
 @dataclass(frozen=True)
 class SegmentResult:
     """Convenient bundle of optimal segment data."""
-
     distance: float
     t_opt: float
     e_opt: float
@@ -25,14 +24,17 @@ class DronePhysics:
       v(t) = alpha * t * (T - t) (scalar speed along the segment direction)
       alpha chosen so that total distance traveled equals d.
 
-    With linear drag (scalar along direction):
-      F(t) = m a(t) + C v(t)
-      Power(t) = hover_power + |F(t) * v(t)|
+    With linear drag and wind:
+      v_ground(t) = v(t) * u (where u is the unit vector of the segment)
+      v_air(t) = v_ground(t) - wind
+      F_thrust(t) = m * a(t) * u + C * v_air(t)
+      Power(t) = hover_power + |F_thrust(t) · v_ground(t)|
       Energy = ∫ Power(t) dt
     """
 
-    def __init__(self, params: DroneParams) -> None:
+    def __init__(self, params: DroneParams, wind_vector: tuple[float, float] = (0.0, 0.0)) -> None:
         self.p = params
+        self.wind = np.array(wind_vector)
 
     # Core kinematics (1D along the segment)
     @staticmethod
@@ -59,44 +61,43 @@ class DronePhysics:
         return alpha * (T * (t**2) / 2.0 - (t**3) / 3.0)
 
     # Energy
-    def segment_energy(self, d: float, T: float) -> float:
+    def segment_energy(self, segment_vector: np.ndarray, T: float) -> float:
         """
-        Compute energy for a segment of length d executed in time T.
-        Returns +inf if T is non-positive or d is negative.
+        Compute energy for a segment executed in time T.
+        Returns +inf if T is non-positive.
         """
-        if d < 0 or T <= 0:
+        if T <= 0:
             return float("inf")
+        
+        d = float(np.linalg.norm(segment_vector))
         if d == 0:
             # If no movement, just hover for T seconds
             return self.p.hover_power * T
+
+        u = segment_vector / d
+        w_parallel = np.dot(self.wind, u)
 
         alpha = self._alpha_for_distance(d, T)
 
         n = max(20, int(self.p.integration_steps))
         t = np.linspace(0.0, T, n)
 
-        v = self._v_profile(alpha, T, t)  # speed
-        a = self._a_profile(alpha, T, t)  # acceleration
-        F = self.p.mass * a + self.p.drag_coeff * v  # required thrust (1D)
-
-        power_thrust = np.abs(F * v)
+        v_g = self._v_profile(alpha, T, t) # ground speed scalar
+        a = self._a_profile(alpha, T, t) # acceleration scalar
+        
+        # Thrust component along segment: m*a + C*(v_g - w_parallel)
+        # We assume power = hover_power + |F_thrust_parallel * v_g|
+        f_thrust_parallel = self.p.mass * a + self.p.drag_coeff * (v_g - w_parallel)
+        
+        power_thrust = np.abs(f_thrust_parallel * v_g)
         power_total = self.p.hover_power + power_thrust
 
         return float(np.trapz(power_total, t))
 
-    # Bounds + optimization over T
+    # Bounds + optimization over T 
     def feasible_time_bounds(self, d: float) -> tuple[float, float]:
         """
         Compute a conservative [T_low, T_high] for searching T.
-
-        Peak speed occurs at t=T/2:
-          v_max_profile = alpha*(T/2)*(T/2) = alpha*T^2/4
-                        = (6d/T^3)*T^2/4 = 1.5 d / T
-          => enforce v_max_profile <= v_max  => T >= 1.5 d / v_max
-
-        Peak acceleration magnitude occurs at endpoints (t=0 or t=T):
-          a_max_profile = |alpha*T| = (6d/T^3)*T = 6d/T^2
-          => enforce a_max_profile <= a_max => T >= sqrt(6d/a_max)
         """
         if d <= 0:
             return (1e-3, 1.0)
@@ -109,15 +110,16 @@ class DronePhysics:
         t_high = max(t_low * 4.0, self.p.t_upper_per_meter * d)
         return (t_low, t_high)
 
-    def find_optimal_time(self, d: float) -> SegmentResult:
-        """Minimize segment_energy(d, T) over feasible T bounds."""
+    def find_optimal_time(self, segment_vector: np.ndarray) -> SegmentResult:
+        """Minimize segment_energy(segment_vector, T) over feasible T bounds."""
+        d = float(np.linalg.norm(segment_vector))
         if d < 0:
             return SegmentResult(distance=d, t_opt=float("nan"), e_opt=float("inf"))
 
         T_low, T_high = self.feasible_time_bounds(d)
 
         def obj(T: float) -> float:
-            return self.segment_energy(d, T)
+            return self.segment_energy(segment_vector, T)
 
         res = minimize_scalar(obj, bounds=(T_low, T_high), method="bounded")
         return SegmentResult(distance=d, t_opt=float(res.x), e_opt=float(res.fun))
@@ -132,7 +134,6 @@ class DronePhysics:
     ) -> dict[str, np.ndarray]:
         """
         Return a dict with arrays: t, pos (Nx2), vel (Nx2), acc (Nx2).
-        This uses the same parabolic speed profile, so vel(0)=vel(T)=0.
         """
         A = np.asarray(A, dtype=float).reshape(2)
         B = np.asarray(B, dtype=float).reshape(2)

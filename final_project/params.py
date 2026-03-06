@@ -1,12 +1,6 @@
 """
 Physical constants and mission configuration for drone routing.
-
-Stop at each waypoint:
-- Segment velocity profile: v(t) = alpha * t * (T - t)
-- Linear drag: F = m dv/dt + C v
-- Energy: integral of (hover power + |F·v|) over time
 """
-from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Optional
@@ -38,24 +32,32 @@ class SimulationConfig:
     bounds: tuple[float, float] = (0.0, 2000.0)
     waypoint_set: Optional[list[tuple[float, float]]] = None
     seed: Optional[int] = None
+    wind_vector: tuple[float, float] = (0.0, 0.0)
+    distribution: str = "uniform"
 
 
-def get_default_params() -> DroneParams:
-    """Return the default quadcopter parameters (DJI Phantom 4 baseline)."""
+def get_default_params(
+    mass: float = 1.38,
+    drag_coeff: float = 1.00,
+    hover_power: float = 60.0,
+    v_max: float = 18.0,
+    a_max: float = 6.0,
+) -> DroneParams:
+    """Return the quadcopter parameters with optional overrides."""
     return DroneParams(
-        mass=1.38, # kg
-        drag_coeff=1.00, # N/(m/s)
-        hover_power=60.0, # W
-        v_max=18.0, # m/s
-        a_max=6.0, # m/s^2
+        mass=mass,
+        drag_coeff=drag_coeff,
+        hover_power=hover_power,
+        v_max=v_max,
+        a_max=a_max,
         integration_steps=600,
         t_upper_per_meter=0.7,
     )
 
 
 def get_default_sim_config() -> SimulationConfig:
-    """Return default mission config (random waypoints)."""
-    return SimulationConfig()
+    """Standard 5-target random mission."""
+    return SimulationConfig(num_targets=5)
 
 
 def get_test_sim_config() -> SimulationConfig:
@@ -64,10 +66,11 @@ def get_test_sim_config() -> SimulationConfig:
         num_targets=6,
         waypoint_set=[
             (0.0, 0.0),
-            (500.0, 0.0),
-            (500.0, 500.0),
-            (0.0, 500.0),
+            (1000.0, 0.0),
+            (1000.0, 1000.0),
+            (0.0, 1000.0),
             (250.0, 250.0),
             (750.0, 750.0),
         ],
+        wind_vector=(5.0, -2.0),
     )
