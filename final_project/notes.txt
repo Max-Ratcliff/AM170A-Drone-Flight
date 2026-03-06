@@ -1,0 +1,89 @@
+Changes:
+Implementing “stop-at-each-waypoint” energy model
+
+Context: 
+- Replaced “straight-line at constant speed through waypoints” behavior with stop-to-stop motion.
+- Use a smooth velocity profile that starts and ends at zero speed on every segment:
+    v(t) = α * t * (T - t),   0 <= t <= T
+  where α is chosen so the total traveled distance equals the segment length d.
+- Model required thrust/force along the segment direction with linear drag:
+    F(t) = m * dv/dt + C * v(t)
+- Define segment energy as the time integral of baseline/hover power plus mechanical power:
+    E(T, d, C) = ∫[0..T] (P_hover + |F(t) * v(t)|) dt
+- For each segment distance d, find the travel time T that minimizes energy:
+    T_min(d, C) = argmin_T E(T, d, C)
+  This produces the U-shaped Energy-vs-Time curve in the advisor’s sketch.
+
+High-level behavioral change (the “stopping at each waypoint” fix)
+- Old behavior: the route planner treated segments as purely geometric (distance) or constant-speed,
+  so the drone could pass through intermediate targets without enforcing a stop.
+- New behavior: every edge i→j is treated as an independent stop-to-stop segment with v(0)=v(T)=0,
+  so the drone “stops” at every waypoint (velocity goes to zero at the endpoints of each segment).
+
+Files changed and what was updated
+
+1) params.py
+- Added/organized parameters needed by the new physics model:
+  - mass (m)
+  - drag_coeff (C) for linear drag
+  - hover_power (P_hover) baseline power
+  - v_max, a_max used to form conservative lower bounds on feasible segment time T
+  - integration_steps to control numerical integration resolution
+  - t_upper_per_meter to set a reasonable upper search bound for T
+- Created a DroneParams dataclass to keep physics parameters consistent across the codebase.
+
+2) physics.py
+- Implemented the advisor’s stop-to-stop segment model:
+  - Velocity profile: v(t) = α t (T - t)
+  - Solved α from distance constraint:
+      d = ∫ v(t) dt = α T^3 / 6  ⇒  α = 6d / T^3
+  - Acceleration profile:
+      a(t) = dv/dt = α (T - 2t)
+  - Energy computation:
+      F(t) = m a(t) + C v(t)
+      E(T) = ∫ (P_hover + |F(t) v(t)|) dt   (computed numerically via trapezoidal rule)
+- Added a routine to compute feasible time bounds:
+  - Enforced soft constraints by bounding peak speed and peak acceleration of the parabolic profile:
+      v_peak = 1.5 d / T  ⇒  T >= 1.5 d / v_max
+      a_peak = 6 d / T^2  ⇒  T >= sqrt(6 d / a_max)
+- Added numerical minimization over T (bounded 1D search) to compute:
+  - T_opt (≈ T_min) and E_opt (= E_min) per segment distance d.
+- Added an optional trajectory builder to generate per-segment position/velocity/acceleration arrays for plots.
+
+3) optimizer.py
+- Switched routing objective from geometric cost to physics-based energy cost:
+  - Built a distance matrix from waypoint coordinates as before,
+    but then converted it into:
+      energy_matrix[i, j] = E_min(distance(i, j))
+      time_matrix[i, j]   = T_min(distance(i, j))   (for diagnostics/plots)
+- Updated TSP solver to operate on the energy matrix:
+  - Route selection now minimizes total energy, not total distance.
+- Kept a brute-force solver for small N and a nearest-neighbor heuristic option for larger N.
+
+4) plotting.py
+- Updated plotting to match the advisor’s “Energy vs Time” sketch:
+  - Plots E(T) for a fixed distance d and marks the minimizer T_min.
+- Updated route visualization:
+  - Compares naive order vs optimized order using total ENERGY as the metric.
+
+5) main.py
+- Rewired the pipeline to use the new physics/optimizer flow:
+  - Generate waypoints and distance matrix
+  - Build energy/time matrices via the physics-based segment optimizer
+  - Solve for the minimum-energy tour
+  - Compute and print:
+      - naive vs optimized total energy
+      - naive vs optimized total time (sum of per-segment T_min)
+  - Save plots:
+      - plots/energy_curve.png
+      - plots/route_map.png
+
+Output changes: 
+- Segment Energy vs Time for a fixed distance d should be U-shaped:
+  - very small T → high energy (large accelerations / power)
+  - very large T → high energy (hover power dominates)
+  - an interior minimum at T_min(d, C)
+- Optimized route order may differ from pure distance TSP because the cost is now energy per segment.
+
+
+

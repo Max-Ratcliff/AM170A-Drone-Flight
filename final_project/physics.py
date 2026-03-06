@@ -1,26 +1,55 @@
-"""Aerodynamic power and energy models for drone flight segments."""
+"""Physics + energy model for stop-at-waypoint segments."""
+from __future__ import annotations
+
+import math
+from dataclasses import dataclass
 
 import numpy as np
+from scipy.optimize import minimize_scalar
+
 from params import DroneParams
 
 
+@dataclass(frozen=True)
+class SegmentResult:
+    """Convenient bundle of optimal segment data."""
+    distance: float
+    t_opt: float
+    e_opt: float
+
+
 class DronePhysics:
-    """Aerodynamic power and energy calculations for drone flight."""
+    """
+    Segment model:
+      v(t) = alpha * t * (T - t) (scalar speed along the segment direction)
+      alpha chosen so that total distance traveled equals d.
 
     def __init__(
         self, params: DroneParams, wind_vector: tuple[float, float] = (0.0, 0.0)
     ) -> None:
         """
-        Initialize with physical constants.
-
-        Args:
-            params: Drone parameters (mass, coefficients, etc.).
-            wind_vector: Environmental wind (w_x, w_y) in m/s. Default is 0, 0.
+        For v(t)=alpha t(T-t):
+        distance = ∫0^T v(t) dt = alpha * T^3 / 6
+        => alpha = 6d / T^3
         """
-        self.params = params
-        self.wind = np.array(wind_vector)
+        return 6.0 * d / (T**3)
 
-    def calculate_power(self, v: float) -> float:
+    @staticmethod
+    def _v_profile(alpha: float, T: float, t: np.ndarray) -> np.ndarray:
+        return alpha * t * (T - t)
+
+    @staticmethod
+    def _a_profile(alpha: float, T: float, t: np.ndarray) -> np.ndarray:
+        # derivative of alpha*t(T-t) = alpha*(T - 2t)
+        return alpha * (T - 2.0 * t)
+
+    @staticmethod
+    def _s_profile(alpha: float, T: float, t: np.ndarray) -> np.ndarray:
+        # s(t) = ∫ v dt = alpha * (T t^2 / 2 - t^3 / 3)
+        return alpha * (T * (t**2) / 2.0 - (t**3) / 3.0)
+
+    # Energy
+    def segment_energy(self, d: float, T: float) -> float:
         """
         Compute aerodynamic power: P(v) = c1 + c2*v^3 + c3/v.
         where v is the airspeed (ground speed adjusted for wind).
@@ -34,21 +63,7 @@ class DronePhysics:
         Returns:
             Power in Watts.
         """
-        c1, c2, c3 = self.params.c1, self.params.c2, self.params.c3
-        return c1 + c2 * (v**3) + c3 / max(v, 1e-9)
-
-    def calculate_energy(self, segment_vector: np.ndarray, v_ground: float) -> float:
-        """
-        Compute energy for a segment: E(v) = P(v_air) * d / v_ground.
-
-        Args:
-            segment_vector: 2D vector of the flight segment in meters.
-            v_ground: Ground speed in m/s.
-
-        Returns:
-            Energy in Joules. Returns inf if v_ground <= 0.
-        """
-        if v_ground <= 0:
+        if d < 0 or T <= 0:
             return float("inf")
 
         distance = float(np.linalg.norm(segment_vector))
