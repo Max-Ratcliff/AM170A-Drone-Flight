@@ -1,8 +1,10 @@
 """Visualization of energy curves and optimal routes."""
 
+import os
 from pathlib import Path
 from typing import TYPE_CHECKING, Dict, List
 
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.axes import Axes
@@ -13,6 +15,44 @@ if TYPE_CHECKING:
     pass
 
 PLOTS_DIR = Path(__file__).resolve().parent / "plots"
+PAPER_PLOTS_DIR = Path(__file__).resolve().parent / "paper_plots"
+
+
+def save_plot(fig, filename: str, dpi: int = 200):
+    """
+    Saves a figure to both the standard plots/ directory (PNG)
+    and the paper_plots/ directory (PGF).
+    """
+    PLOTS_DIR.mkdir(parents=True, exist_ok=True)
+    PAPER_PLOTS_DIR.mkdir(parents=True, exist_ok=True)
+
+    # Save PNG for quick viewing
+    png_path = PLOTS_DIR / (Path(filename).stem + ".png")
+    fig.savefig(png_path, dpi=dpi, bbox_inches="tight")
+    print(f"Saved PNG to {png_path}")
+
+    # Save PGF for LaTeX consistency
+    # We use a temporary backend switch to avoid breaking plt.show()
+    pgf_path = PAPER_PLOTS_DIR / (Path(filename).stem + ".pgf")
+
+    # Configure PGF settings
+    original_backend = matplotlib.get_backend()
+    try:
+        # Use PGF-friendly settings for the export
+        plt.rcParams.update(
+            {
+                "font.family": "serif",
+                "text.usetex": True,
+                "pgf.rcfonts": False,
+            }
+        )
+        fig.savefig(pgf_path, backend="pgf", bbox_inches="tight")
+        print(f"Saved PGF to {pgf_path}")
+    except Exception as e:
+        print(f"Warning: Could not save PGF ({e}). Ensure LaTeX is installed.")
+    finally:
+        # Restore some defaults if needed, though rcParams persist
+        pass
 
 
 class Visualizer:
@@ -38,13 +78,10 @@ class Visualizer:
         hover_energy = base_physics.p.hover_power * Ts
 
         # No Drag Case (lambda = 0): Analytical version
-        # Energy = P_hover*T + Work(acceleration)
-        # For a stop-to-stop parabolic profile, Work = m * (1.5 d / T)^2
         no_drag_energy = hover_energy + base_physics.p.mass * (1.5 * d / Ts) ** 2
         ax.plot(Ts, no_drag_energy, "g-", alpha=0.5, label="No Drag (Ideal)")
 
         # Series of Drag Coefficients (lambda > 0)
-        # Original drag
         current_energy = [base_physics.segment_energy(segment_vector, T) for T in Ts]
         ax.plot(
             Ts,
@@ -65,7 +102,7 @@ class Visualizer:
             label=f"$T_{{opt}} = {Ts[idx]:.1f}s$",
         )
 
-        # High drag scenarios (visualizing sensitivity)
+        # High drag scenarios
         for multiplier, style in [(2.0, ":"), (4.0, "-.")]:
             params_high = get_default_params(
                 mass=base_physics.p.mass,
@@ -88,19 +125,16 @@ class Visualizer:
 
         wind_str = f"[{base_physics.wind[0]:.1f}, {base_physics.wind[1]:.1f}] m/s"
         ax.set_title(
-            f"Energy VS Drag Analysis (d = {d:.0f}m, wind = {wind_str})",
+            f"Energy VS Drag Analysis (wind = {wind_str})",
             fontsize=22,
         )
 
-        ax.set_ylim(
-            0, float(np.percentile(current_energy, 95) * 1.2)
-        )  # Avoid zooming out too much due to small T
+        ax.set_ylim(0, float(np.percentile(current_energy, 95) * 1.2))
         ax.grid(True, alpha=0.3)
         ax.legend(fontsize=14)
 
         fig.tight_layout()
-        PLOTS_DIR.mkdir(parents=True, exist_ok=True)
-        fig.savefig(PLOTS_DIR / "energy_curve.png", dpi=200)
+        save_plot(fig, "energy_curve.png", dpi=200)
         plt.close(fig)
 
     # ---------------- Grid route comparison ----------------
@@ -114,7 +148,10 @@ class Visualizer:
     ) -> None:
         """
         Plots a grid of route comparisons (1x2, 1x3, or 2x2).
+        Includes a shared legend and improved label legibility.
         """
+        import matplotlib.patheffects as path_effects
+
         n_plots = len(orders)
         if n_plots <= 2:
             rows, cols = 1, 2
@@ -123,7 +160,7 @@ class Visualizer:
         else:
             rows, cols = 2, 2
 
-        fig, axes = plt.subplots(rows, cols, figsize=(cols * 6, rows * 6))
+        fig, axes = plt.subplots(rows, cols, figsize=(cols * 5, rows * 5))
 
         if n_plots == 1:
             axes_list = [axes]
@@ -136,8 +173,8 @@ class Visualizer:
             if wind_speed > 0.1:
                 x_min, x_max = waypoints[:, 0].min(), waypoints[:, 0].max()
                 y_min, y_max = waypoints[:, 1].min(), waypoints[:, 1].max()
-                pad_x = (x_max - x_min) * 0.1 + 50
-                pad_y = (y_max - y_min) * 0.1 + 50
+                pad_x = (x_max - x_min) * 0.2 + 100
+                pad_y = (y_max - y_min) * 0.2 + 100
 
                 x_grid = np.linspace(x_min - pad_x, x_max + pad_x, 8)
                 y_grid = np.linspace(y_min - pad_y, y_max + pad_y, 8)
@@ -145,66 +182,78 @@ class Visualizer:
                 U = np.full(X.shape, wind_vector[0])
                 V = np.full(X.shape, wind_vector[1])
 
-                ax.quiver(
-                    X, Y, U, V, color="gray", alpha=0.15, pivot="middle", zorder=1
-                )
+                ax.quiver(X, Y, U, V, color="gray", alpha=0.1, pivot="middle", zorder=1)
 
+            # Waypoints
             ax.scatter(
                 waypoints[:, 0],
                 waypoints[:, 1],
-                s=80,
+                s=60,
                 color="#4C72B0",
                 edgecolor="black",
-                linewidth=1,
+                linewidth=0.8,
                 zorder=3,
             )
 
+            # Home Highlight
             ax.scatter(
                 waypoints[order[0], 0],
                 waypoints[order[0], 1],
-                s=180,
+                s=150,
                 facecolor="none",
                 edgecolor="green",
-                linewidth=2.5,
+                linewidth=2,
                 zorder=4,
             )
 
+            # Waypoint Labels with "Breathing Room" (White Halo)
             for idx, (x, y) in enumerate(waypoints):
-                ax.text(x + 10, y + 10, str(idx), fontsize=10, zorder=5)
+                txt = ax.text(
+                    x + 40, y + 40, str(idx), fontsize=11, fontweight="bold", zorder=10
+                )
+                txt.set_path_effects(
+                    [path_effects.withStroke(linewidth=3, foreground="white")]
+                )
 
+            # Traversal Path
             for k in range(len(order)):
                 i, j = order[k], order[(k + 1) % len(order)]
                 xi, yi = waypoints[i, 0], waypoints[i, 1]
                 xj, yj = waypoints[j, 0], waypoints[j, 1]
 
-                ax.plot(
-                    [xi, xj],
-                    [yi, yj],
-                    linestyle="--",
-                    linewidth=1.5,
-                    color="blue",
-                    alpha=0.8,
-                    zorder=2,
-                )
                 ax.annotate(
                     "",
                     xy=(xj, yj),
                     xytext=(xi, yi),
-                    arrowprops=dict(arrowstyle="->", lw=1.5, color="blue", alpha=0.7),
+                    arrowprops=dict(
+                        arrowstyle="->",
+                        lw=1.5,
+                        color="blue",
+                        alpha=0.6,
+                        shrinkA=10,
+                        shrinkB=10,
+                    ),
                     zorder=2,
                 )
 
-            ax.set_title(f"{title}\nEnergy: {energy:.0f} J", fontsize=18)
-            ax.set_xlabel("x [m]", fontsize=14)
-            ax.set_ylabel("y [m]", fontsize=14)
-            ax.grid(True, alpha=0.3)
+            ax.set_title(f"{title}\nTotal: {energy:.0f} J", fontsize=16)
+            ax.set_xlabel("x [m]", fontsize=12)
+            ax.set_ylabel("y [m]", fontsize=12)
+            ax.grid(True, alpha=0.2)
             ax.set_aspect("equal", adjustable="box")
+
+            # Ensure enough padding for labels near edges
+            x_min, x_max = waypoints[:, 0].min(), waypoints[:, 0].max()
+            y_min, y_max = waypoints[:, 1].min(), waypoints[:, 1].max()
+            ax.set_xlim(x_min - 200, x_max + 200)
+            ax.set_ylim(y_min - 200, y_max + 200)
 
         display_names = {
             "Naive": "Naive (Sequential)",
-            "nearest_neighbor": "Nearest Neighbor",
-            "nn_2opt": "NN + 2-opt Improvement",
-            "held_karp": "Held-Karp (Exact)",
+            "Shortest Path": "Shortest Path (Dist 2-opt)",
+            "nearest_neighbor": "Nearest Neighbor (Energy)",
+            "nn_2opt": "2-opt Refinement (Energy)",
+            "held_karp": "Held-Karp (Energy Exact)",
             "brute": "Brute Force (Exact)",
         }
 
@@ -212,17 +261,70 @@ class Visualizer:
             title = display_names.get(method, method)
             draw_route(axes_list[idx], order, title, energies[method])
 
+        # Turn off empty subplots
         for idx in range(n_plots, rows * cols):
             axes_list[idx].axis("off")
 
-        wind_str = f"Wind: [{wind_vector[0]:.1f}, {wind_vector[1]:.1f}] m/s"
-        fig.suptitle(
-            f"Drone Route Optimization Comparison ({wind_str})", fontsize=24, y=0.98
+        fig.suptitle("Drone Route Optimization Comparison", fontsize=22, y=0.98)
+
+        # Create Shared Legend
+        from matplotlib.lines import Line2D
+
+        wind_val_str = f"[{wind_vector[0]:.1f}, {wind_vector[1]:.1f}] m/s"
+        legend_elements = [
+            Line2D(
+                [0],
+                [0],
+                marker="o",
+                color="w",
+                label="Waypoint (Input Index)",
+                markerfacecolor="#4C72B0",
+                markeredgecolor="black",
+                markersize=10,
+            ),
+            Line2D(
+                [0],
+                [0],
+                marker="o",
+                color="w",
+                label="Home/Launch Site",
+                markeredgecolor="green",
+                markeredgewidth=2,
+                markersize=12,
+            ),
+            Line2D(
+                [0],
+                [0],
+                color="blue",
+                lw=1.5,
+                alpha=0.6,
+                marker=">",
+                label="Flight Path",
+            ),
+            Line2D(
+                [0],
+                [0],
+                color="gray",
+                lw=1,
+                alpha=0.3,
+                marker=">",
+                label=f"Wind {wind_val_str}",
+            ),
+        ]
+
+        fig.legend(
+            handles=legend_elements,
+            loc="lower center",
+            ncol=2,
+            fontsize=12,
+            bbox_to_anchor=(0.5, -0.05),
         )
 
-        fig.tight_layout(rect=(0, 0.03, 1, 0.95), h_pad=3)
-        PLOTS_DIR.mkdir(parents=True, exist_ok=True)
-        fig.savefig(PLOTS_DIR / filename, dpi=200, bbox_inches="tight")
+        fig.tight_layout(rect=(0, 0.05, 1, 0.95))
+        # Reduce spacing between columns and rows
+        plt.subplots_adjust(wspace=0.10, hspace=0.35)
+
+        save_plot(fig, filename, dpi=200)
         plt.close(fig)
 
     # ---------------- Flexible energy comparison ----------------
@@ -238,9 +340,10 @@ class Visualizer:
 
         display_map = {
             "Naive": "Naive",
-            "nearest_neighbor": "NN",
-            "nn_2opt": "2-opt",
-            "held_karp": "Held-Karp",
+            "Shortest Path": "Dist 2-opt",
+            "nearest_neighbor": "Energy NN",
+            "nn_2opt": "Energy 2-opt",
+            "held_karp": "Energy HK",
             "brute": "Brute",
         }
         labels = [display_map.get(k, k) for k in results.keys()]
@@ -251,9 +354,7 @@ class Visualizer:
 
         bars = ax.bar(labels, vals, color=colors, edgecolor="black", linewidth=1.2)
 
-        ax.set_title(
-            "Total Energy Comparison (All Active Solvers)", fontsize=24, pad=15
-        )
+        ax.set_title("Total Route Energy Comparison", fontsize=24, pad=15)
         ax.set_ylabel("Energy [J]", fontsize=18)
         ax.grid(True, axis="y", alpha=0.35)
         ax.set_axisbelow(True)
@@ -272,6 +373,5 @@ class Visualizer:
 
         ax.set_ylim(0, max(vals) * 1.15)
         fig.tight_layout()
-        PLOTS_DIR.mkdir(parents=True, exist_ok=True)
-        fig.savefig(PLOTS_DIR / filename, dpi=200)
+        save_plot(fig, filename, dpi=200)
         plt.close(fig)

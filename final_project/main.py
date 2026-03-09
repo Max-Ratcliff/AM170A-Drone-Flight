@@ -49,6 +49,12 @@ def main(
     # Build energy matrix
     energy_matrix, _ = optimizer.build_energy_matrix(waypoints)
 
+    # Build Euclidean Distance matrix for Shortest Path baseline
+    dist_matrix = np.zeros((num_targets, num_targets))
+    for i in range(num_targets):
+        for j in range(num_targets):
+            dist_matrix[i, j] = np.linalg.norm(waypoints[i] - waypoints[j])
+
     # Define route cost helper
     def route_energy(order: List[int]) -> float:
         total = 0.0
@@ -61,55 +67,69 @@ def main(
     orders: Dict[str, List[int]] = {}
     results_energy: Dict[str, float] = {}
 
-    # Always compute Naive
+    # 1. Naive (Sequential)
     naive_order = list(range(num_targets))
-    orders["Naive"] = naive_order
     results_energy["Naive"] = route_energy(naive_order)
 
+    # 2. Shortest Distance Path (Distance-based 2-opt) - Strategy 1 Baseline
+    # We use the same algorithm (2-opt) as the energy solver for a fair comparison
+    print("Computing Distance-based 2-opt baseline...")
+    dist_order = optimizer.solve_tsp(dist_matrix, method="nn_2opt")
+    orders["Shortest Path"] = dist_order
+    results_energy["Shortest Path"] = route_energy(dist_order)
+
     if tsp_method:
-        # User specified a single method
         methods_to_run = [tsp_method]
         primary_method = tsp_method
     else:
-        # Default: run all safe solvers (skip brute-force automatically)
+        # Energy-Optimized solvers
         methods_to_run = ["held_karp", "nearest_neighbor", "nn_2opt"]
-        primary_method = "held_karp"
+        primary_method = "nn_2opt" # Use 2-opt as the primary comparison
 
     for m in methods_to_run:
+        print(f"Computing Energy-Optimized route using {m}...")
         order = optimizer.solve_tsp(energy_matrix, method=m)
         orders[m] = order
         results_energy[m] = route_energy(order)
 
     # Primary results for console output
-    optimal_energy = results_energy[primary_method]
-    naive_energy = results_energy["Naive"]
-    energy_saved = naive_energy - optimal_energy
+    optimal_energy = results_energy["nn_2opt"]
+    shortest_dist_energy = results_energy["Shortest Path"]
+    physics_gain = (shortest_dist_energy - optimal_energy) / shortest_dist_energy
 
-    print("=== Drone Routing Optimization Results (Stop-at-Waypoint) ===")
-    print(f"Waypoints: \n{waypoints}")
+    print("=== Strategy 1: Algorithm-Fair Benchmark (2-opt vs 2-opt) ===")
+    print(f"Waypoints: {num_targets}")
     print(f"Wind Vector (m/s): {config.wind_vector}")
-    print(
-        f"Physics: mass={params.mass}kg, drag={params.drag_coeff}, hover={params.hover_power}W"
-    )
-    print(f"Naive route energy: {naive_energy:.2f} J")
-    print(f"Optimal ({primary_method}) energy: {optimal_energy:.2f} J")
-    print(f"Energy saved: {energy_saved:.2f} J")
+    print(f"Dist-Optimized 2-opt Energy: {shortest_dist_energy:.2f} J")
+    print(f"Energy-Optimized 2-opt Energy: {optimal_energy:.2f} J")
+    print(f"Pure Physics Gain (using identical 2-opt algorithm): {physics_gain:.2%}")
+
+    # Also include the global optimum (HK) for reference
+    hk_energy = results_energy.get("held_karp", 0)
+    if hk_energy > 0:
+        hk_gap = (optimal_energy - hk_energy) / hk_energy
+        print(f"Energy HK (Global Optimum): {hk_energy:.2f} J")
+        print(f"Heuristic Optimality Gap (2-opt vs HK): {hk_gap:.2%}")
 
     visualizer = Visualizer()
 
-    # Energy diagnostic curve (Multi-curve sensitivity analysis)
+    # Diagnostic curve
     visualizer.plot_energy_curve(physics, np.array([1000.0, 0.0]))
 
-    # Comprehensive Route Grid (2x2 comparison including Wind)
+    # Comprehensive Route Grid (2x2 comparison)
+    # Show how Physics (NN, 2-opt, HK) beats Geometry (Shortest Path)
+    grid_methods = ["Shortest Path", "nearest_neighbor", "nn_2opt", "held_karp"]
+    grid_orders = {m: orders[m] for m in grid_methods if m in orders}
+    
     visualizer.plot_route_grid(
         waypoints,
-        orders,
+        grid_orders,
         results_energy,
         wind_vector=physics.wind,
         filename="route_comparison.png",
     )
 
-    # Bar chart of all computed solvers
+    # Bar chart of all computed solvers (including Naive for scale)
     visualizer.plot_energy_comparison(results_energy, filename="total_energy.png")
 
     print("\nPlots saved to plots/:")

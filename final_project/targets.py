@@ -81,6 +81,32 @@ class Targets:
             )
             return grid_points[indices] + jitter
 
-        # Default: Uniform
-        waypoints = self._rng.uniform(low=low, high=high, size=(self.num_targets, 2))
-        return waypoints.astype(np.float64)
+        # Default: Uniform with Minimum Distance Constraint
+        # Ensures points aren't too close, which helps label legibility.
+        waypoints = []
+        min_dist = (high - low) / (self.num_targets ** 0.5 * 2.0) # Adaptive min distance
+        
+        max_attempts = 1000
+        attempts = 0
+        
+        while len(waypoints) < self.num_targets and attempts < max_attempts:
+            point = self._rng.uniform(low=low, high=high, size=2)
+            
+            # Check distance against all existing points
+            is_valid = True
+            for existing in waypoints:
+                if np.linalg.norm(point - existing) < min_dist:
+                    is_valid = False
+                    break
+            
+            if is_valid:
+                waypoints.append(point)
+            attempts += 1
+            
+        # Fallback if constraint is too tight
+        if len(waypoints) < self.num_targets:
+            remaining = self.num_targets - len(waypoints)
+            extra = self._rng.uniform(low=low, high=high, size=(remaining, 2))
+            waypoints.extend(extra.tolist())
+
+        return np.array(waypoints, dtype=np.float64)
